@@ -1,0 +1,28 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+
+# Database
+*.db
+jobs.db
+
+# Logs
+*.log
+generation_log.csv
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+._*
+
+# Output (configured externally)
+# /Volumes/T9/dual-image-generations/

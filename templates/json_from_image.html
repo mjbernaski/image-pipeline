@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image to Scene JSON</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0e0e10;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+
+  .container { width: 100%; max-width: 800px; }
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+
+  .section {
+    background: #1a1a1e;
+    border: 1px solid #2a2a2e;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .section-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    margin-bottom: 1rem;
+  }
+
+  .drop-zone {
+    border: 2px dashed #3a3a3e;
+    border-radius: 10px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: #5a5af0;
+    background: #1a1a2e;
+  }
+
+  .drop-zone p { color: #888; font-size: 0.9rem; }
+  .drop-zone .hint { color: #555; font-size: 0.75rem; margin-top: 0.5rem; }
+
+  .preview-img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    margin-top: 1rem;
+    display: none;
+  }
+
+  .model-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .model-row label { font-size: 0.8rem; color: #aaa; white-space: nowrap; }
+
+  textarea.steering {
+    width: 100%;
+    background: #111113;
+    border: 1px solid #2a2a2e;
+    border-radius: 6px;
+    padding: 0.55rem 0.7rem;
+    color: #e0e0e0;
+    font-size: 0.85rem;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 50px;
+  }
+
+  textarea.steering:focus { outline: none; border-color: #5a5af0; }
+  .steering-hint { font-size: 0.7rem; color: #555; margin-top: 0.25rem; }
+
+  select {
+    flex: 1;
+    background: #111113;
+    border: 1px solid #2a2a2e;
+    border-radius: 6px;
+    padding: 0.55rem 0.5rem;
+    color: #e0e0e0;
+    font-size: 0.85rem;
+    font-family: inherit;
+  }
+
+  select:focus { outline: none; border-color: #5a5af0; }
+
+  .actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .btn {
+    padding: 0.7rem 1.2rem;
+    border-radius: 8px;
+    border: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-analyze { background: #5a5af0; color: #fff; flex: 1; }
+  .btn-analyze:hover:not(:disabled) { background: #4a4ae0; }
+
+  .btn-send { background: #2a9d5c; color: #fff; }
+  .btn-send:hover:not(:disabled) { background: #238a4f; }
+
+  .btn-copy { background: #1a1a1e; color: #ccc; border: 1px solid #2a2a2e; }
+  .btn-copy:hover:not(:disabled) { background: #222226; }
+
+  .result-area {
+    background: #111113;
+    border: 1px solid #2a2a2e;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.78rem;
+    color: #9a9aef;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 500px;
+    overflow-y: auto;
+    display: none;
+  }
+
+  .status {
+    text-align: center;
+    padding: 1rem;
+    font-size: 0.85rem;
+    color: #888;
+    display: none;
+  }
+
+  .status.error { color: #f55; }
+
+  .spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #5a5af0;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-right: 0.5rem;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #5a5af0;
+    color: #fff;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Image to Scene JSON</h1>
+
+  <div class="section">
+    <div class="section-title">Upload Image</div>
+    <div class="drop-zone" id="drop-zone">
+      <p>Drop an image here or click to select</p>
+      <p class="hint">Supports JPG, PNG, WebP &mdash; or paste from clipboard</p>
+      <input type="file" id="file-input" hidden>
+    </div>
+    <img class="preview-img" id="preview-img">
+  </div>
+
+  <div class="section">
+    <div class="section-title">Model</div>
+    <div class="model-row">
+      <label for="model-select">Vision Model:</label>
+      <select id="model-select"><option value="">Loading...</option></select>
+    </div>
+    <textarea class="steering" id="steering" placeholder="e.g. Focus on the lighting and mood, treat this as a product shot"></textarea>
+    <p class="steering-hint">Optional steering prompt to guide the analysis</p>
+  </div>
+
+  <div class="actions">
+    <button type="button" class="btn btn-analyze" id="btn-analyze" disabled onclick="analyze()">Analyze Image</button>
+    <button type="button" class="btn btn-copy" id="btn-copy" disabled onclick="copyResult()">Copy JSON</button>
+    <button type="button" class="btn btn-send" id="btn-send" disabled onclick="sendResult()">Send</button>
+  </div>
+
+  <div class="status" id="status"></div>
+  <pre class="result-area" id="result"></pre>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let currentImage = null;
+let currentResult = null;
+
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const previewImg = document.getElementById('preview-img');
+const btnAnalyze = document.getElementById('btn-analyze');
+const btnCopy = document.getElementById('btn-copy');
+const btnSend = document.getElementById('btn-send');
+const statusEl = document.getElementById('status');
+const resultEl = document.getElementById('result');
+
+fetch('/api/models')
+  .then(r => r.json())
+  .then(data => {
+    const sel = document.getElementById('model-select');
+    sel.innerHTML = '';
+    const defaultModel = data.default_model || '';
+    (data.data || []).forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = m.id;
+      if (m.id === defaultModel) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    if (!sel.options.length) {
+      sel.innerHTML = '<option value="">No models found</option>';
+    }
+  })
+  .catch(() => {
+    document.getElementById('model-select').innerHTML = '<option value="">Could not connect to LM Studio</option>';
+  });
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files.length) loadFile(fileInput.files[0]); });
+
+document.addEventListener('paste', e => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      loadFile(item.getAsFile());
+      return;
+    }
+  }
+});
+
+function loadFile(file) {
+  if (!file.type.startsWith('image/')) return;
+  currentImage = file;
+  const url = URL.createObjectURL(file);
+  previewImg.src = url;
+  previewImg.style.display = 'block';
+  dropZone.querySelector('p').textContent = file.name;
+  btnAnalyze.disabled = false;
+  currentResult = null;
+  btnCopy.disabled = true;
+  btnSend.disabled = true;
+  resultEl.style.display = 'none';
+  statusEl.style.display = 'none';
+}
+
+async function analyze() {
+  if (!currentImage) return;
+
+  btnAnalyze.disabled = true;
+  btnAnalyze.textContent = 'Analyzing...';
+  statusEl.className = 'status';
+  statusEl.innerHTML = '<span class="spinner"></span>Sending to LM Studio...';
+  statusEl.style.display = 'block';
+  resultEl.style.display = 'none';
+  currentResult = null;
+  btnCopy.disabled = true;
+  btnSend.disabled = true;
+
+  const reader = new FileReader();
+  reader.onload = async function() {
+    const base64 = reader.result.split(',')[1];
+    const mime = currentImage.type || 'image/png';
+    const model = document.getElementById('model-select').value;
+    const steering = document.getElementById('steering').value.trim();
+
+    try {
+      const resp = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_base64: base64, mime, model, steering })
+      });
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+
+      currentResult = data;
+      resultEl.textContent = JSON.stringify(data, null, 2);
+      resultEl.style.display = 'block';
+      statusEl.style.display = 'none';
+      btnCopy.disabled = false;
+      btnSend.disabled = false;
+    } catch (e) {
+      statusEl.className = 'status error';
+      statusEl.textContent = e.message || 'Analysis failed';
+      console.error('Analyze error:', e);
+    } finally {
+      btnAnalyze.disabled = false;
+      btnAnalyze.textContent = 'Analyze Image';
+    }
+  };
+  reader.readAsDataURL(currentImage);
+}
+
+function copyResult() {
+  if (!currentResult) return;
+  navigator.clipboard.writeText(JSON.stringify(currentResult, null, 2)).then(() => showToast('Copied to clipboard'));
+}
+
+async function sendResult() {
+  if (!currentResult) return;
+  btnSend.disabled = true;
+  btnSend.textContent = 'Sending...';
+  try {
+    const resp = await fetch('/api/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(currentResult),
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    showToast('Sent to generator');
+  } catch (e) {
+    showToast(e.message || 'Send failed');
+  } finally {
+    btnSend.disabled = false;
+    btnSend.textContent = 'Send';
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+</script>
+</body>
+</html>

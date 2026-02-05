@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dual Image Generator</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: #12122a;
+            border-right: 1px solid #333;
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .sidebar-header h2 {
+            color: #00d4ff;
+            font-size: 1.1rem;
+        }
+        .clear-queue-btn {
+            background: none;
+            border: 1px solid #666;
+            color: #888;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .clear-queue-btn:hover {
+            border-color: #f44336;
+            color: #f44336;
+        }
+        .queue-badge {
+            background: #00d4ff;
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .queue-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        .queue-item {
+            background: #1e2a4a;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .queue-item:hover { background: #253255; }
+        .queue-item.active { border: 1px solid #00d4ff; }
+        .queue-item.running { border-left: 3px solid #ffd700; }
+        .queue-item.complete { border-left: 3px solid #4caf50; }
+        .queue-item.error { border-left: 3px solid #f44336; }
+        .queue-item.queued { border-left: 3px solid #888; }
+        .queue-item.cancelled { border-left: 3px solid #666; opacity: 0.5; }
+        .queue-item-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .queue-item-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .queue-item-status.running { background: #ffd700; animation: pulse 1s ease-in-out infinite; }
+        .queue-item-status.complete { background: #4caf50; }
+        .queue-item-status.error { background: #f44336; }
+        .queue-item-status.queued { background: #888; }
+        .queue-item-status.cancelled { background: #666; }
+        .queue-item-id {
+            font-size: 0.75rem;
+            color: #888;
+        }
+        .queue-item-prompt {
+            font-size: 0.85rem;
+            color: #ccc;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .queue-item-meta {
+            font-size: 0.7rem;
+            color: #666;
+            margin-top: 4px;
+        }
+        .queue-item-cancel {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 2px 6px;
+        }
+        .queue-item-cancel:hover { color: #f44336; }
+        .queue-section-label {
+            font-size: 0.7rem;
+            color: #666;
+            text-transform: uppercase;
+            padding: 8px 4px 4px;
+        }
+
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 16px;
+            min-height: 100vh;
+        }
+
+        h1 {
+            text-align: center;
+            color: #00d4ff;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+
+        .form-section {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .form-group { margin-bottom: 16px; }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #0f0f23;
+            color: #fff;
+            font-size: 16px;
+            resize: none;
+            min-height: 38px;
+            height: 38px;
+            overflow: hidden;
+            transition: height 0.15s ease;
+        }
+        textarea:focus { outline: none; border-color: #00d4ff; }
+        textarea.expanded {
+            height: 80px;
+            overflow-y: auto;
+            resize: vertical;
+        }
+
+        .options {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #00d4ff;
+        }
+        input[type="number"] {
+            width: 70px;
+            padding: 8px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #0f0f23;
+            color: #fff;
+            font-size: 16px;
+        }
+        select {
+            padding: 8px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #0f0f23;
+            color: #fff;
+            font-size: 16px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #0066ff);
+            color: white;
+        }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-primary:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+
+        .status-bar {
+            background: #16213e;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .status-bar.active { display: block; }
+        .status-text { color: #ffd700; }
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #333;
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .results-section { margin-top: 24px; }
+        .result-group {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        .result-prompt {
+            color: #ffd700;
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+            word-break: break-word;
+            position: relative;
+            padding-right: 30px;
+        }
+        .result-prompt .copy-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+        }
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+        .image-card {
+            background: #0f0f23;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .image-card img {
+            width: 100%;
+            height: auto;
+            display: block;
+            cursor: pointer;
+        }
+        .image-meta {
+            padding: 10px;
+            font-size: 0.8rem;
+            color: #888;
+        }
+        .image-meta .endpoint { color: #00d4ff; font-weight: 600; }
+        .image-error {
+            padding: 20px;
+            color: #ff6b6b;
+            text-align: center;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: #16213e;
+            border: none;
+            border-radius: 8px;
+            color: #aaa;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        .tab.active {
+            background: #00d4ff;
+            color: #000;
+        }
+
+        .gallery-grid {
+            columns: 4 150px;
+            column-gap: 8px;
+        }
+        .gallery-item {
+            overflow: hidden;
+            border-radius: 8px;
+            cursor: pointer;
+            position: relative;
+            break-inside: avoid;
+            margin-bottom: 8px;
+        }
+        .gallery-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .gallery-item-actions {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 8px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .gallery-item:hover .gallery-item-actions {
+            opacity: 1;
+        }
+        .gallery-item-actions .use-as-input-btn {
+            width: 100%;
+            margin-top: 0;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            padding: 20px;
+        }
+        .modal.active { display: flex; align-items: center; justify-content: center; }
+        .modal img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 8px;
+        }
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 2rem;
+            color: white;
+            cursor: pointer;
+        }
+
+        .image-upload {
+            border: 2px dashed #444;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #0f0f23;
+        }
+        .image-upload:hover, .image-upload.dragover {
+            border-color: #00d4ff;
+            background: #1a1a3e;
+        }
+        .image-upload.has-image {
+            border-color: #4caf50;
+        }
+        .image-upload input[type="file"] {
+            display: none;
+        }
+        .image-upload-text {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        .image-preview {
+            max-width: 200px;
+            max-height: 150px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .clear-image {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-top: 8px;
+        }
+
+        .endpoints-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .endpoint-card {
+            background: #16213e;
+            padding: 12px 16px;
+            border-radius: 8px;
+            flex: 1;
+            min-width: 200px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .endpoint-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .endpoint-dot.online { background: #4caf50; }
+        .endpoint-dot.offline { background: #f44336; }
+        .endpoint-dot.unknown { background: #888; }
+        .endpoint-dot.generating {
+            background: #ffd700;
+            animation: pulse 1s ease-in-out infinite;
+        }
+        .endpoint-dot.done { background: #4caf50; }
+        .endpoint-dot.error { background: #f44336; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .endpoint-info {
+            flex: 1;
+        }
+        .endpoint-name {
+            font-weight: 600;
+            color: #00d4ff;
+            font-size: 0.9rem;
+        }
+        .endpoint-detail {
+            font-size: 0.75rem;
+            color: #888;
+        }
+        .endpoint-status-text {
+            font-size: 0.75rem;
+            color: #aaa;
+        }
+        .llm-card {
+            background: #1e2a4a;
+            border: 1px solid #00d4ff33;
+        }
+        .llm-card .endpoint-name {
+            color: #ffd700;
+        }
+        .endpoint-dot.idle { background: #555; }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main-content { margin-left: 0; }
+        }
+        .current-prompt-box {
+            background: #0f0f23;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            padding-right: 36px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: #ccc;
+            position: relative;
+        }
+        .current-prompt-box .prompt-label {
+            color: #ffd700;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .current-prompt-box .prompt-text {
+            max-height: 60px;
+            overflow-y: auto;
+            word-break: break-word;
+        }
+        .current-prompt-box .copy-btn {
+            position: absolute !important;
+            top: 8px !important;
+            right: 8px !important;
+        }
+        .copy-btn {
+            background: none;
+            border: none;
+            color: #666;
+            padding: 2px 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-left: 4px;
+            transition: all 0.2s;
+            vertical-align: middle;
+        }
+        .copy-btn:hover {
+            color: #00d4ff;
+        }
+        .copy-btn.copied {
+            color: #4caf50;
+        }
+
+        .prompt-mode-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .prompt-mode-btn {
+            flex: 1;
+            padding: 10px;
+            background: #0f0f23;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .prompt-mode-btn:hover { border-color: #00d4ff; }
+        .prompt-mode-btn.active {
+            background: #1e3a5f;
+            border-color: #00d4ff;
+            color: #fff;
+        }
+        .dual-prompt-container {
+            display: none;
+            gap: 12px;
+        }
+        .dual-prompt-container.visible {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+        .dual-prompt-container .form-group {
+            margin-bottom: 0;
+        }
+        .dual-prompt-note {
+            display: none;
+            background: #1e3a5f;
+            border: 1px solid #00d4ff33;
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-bottom: 16px;
+        }
+        .dual-prompt-note.visible { display: block; }
+
+        .use-as-input-btn {
+            width: auto;
+            padding: 4px 10px;
+            margin-top: 8px;
+            font-size: 0.75rem;
+            background: #1e3a5f;
+            border: 1px solid #00d4ff;
+            color: #00d4ff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .use-as-input-btn:hover {
+            background: #00d4ff;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>Queue</h2>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button class="clear-queue-btn" onclick="clearQueue()" title="Clear queue and history">Clear</button>
+                <span class="queue-badge" id="queue-badge">0</span>
+            </div>
+        </div>
+        <div class="queue-list" id="queue-list"></div>
+    </div>
+
+    <div class="main-content">
+        <div class="container">
+            <h1>Dual Image Generator</h1>
+
+            <div class="endpoints-bar" id="endpoints-bar"></div>
+
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('generate')">Generate</button>
+                <button class="tab" onclick="showTab('gallery')">Gallery</button>
+            </div>
+
+            <div id="generate-tab">
+                <div class="form-section">
+                    <div class="form-group">
+                        <label>Prompt Mode</label>
+                        <div class="prompt-mode-selector">
+                            <button type="button" class="prompt-mode-btn active" data-mode="same" onclick="setPromptMode('same')">Same for both</button>
+                            <button type="button" class="prompt-mode-btn" data-mode="different" onclick="setPromptMode('different')">Different prompts</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="single-prompt-group">
+                        <label for="prompt">Prompt (or steering concept if random)</label>
+                        <textarea id="prompt" placeholder="A futuristic city at sunset..."></textarea>
+                    </div>
+
+                    <div class="dual-prompt-container" id="dual-prompt-container">
+                        <div class="form-group">
+                            <label for="prompt1">Endpoint 1 (5.40)</label>
+                            <textarea id="prompt1" placeholder="Prompt for endpoint 1..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="prompt2">Endpoint 2 (5.46)</label>
+                            <textarea id="prompt2" placeholder="Prompt for endpoint 2..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="dual-prompt-note" id="dual-prompt-note">
+                        Two separate prompts will be generated by the LLM for each endpoint.
+                    </div>
+
+                    <div class="form-group">
+                        <label>Input Image (optional, for img2img)</label>
+                        <div class="image-upload" id="image-upload" onclick="document.getElementById('image-input').click()">
+                            <input type="file" id="image-input" accept="image/*" onchange="handleImageSelect(event)">
+                            <div id="upload-content">
+                                <div class="image-upload-text">Click or drag an image here</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group options">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="random" onchange="updatePromptModeUI()">
+                            <label for="random" style="margin:0">Random / LLM prompt</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <label for="orientation" style="margin:0">Orientation:</label>
+                            <select id="orientation">
+                                <option value="landscape" selected>Landscape</option>
+                                <option value="portrait">Portrait</option>
+                                <option value="square">Square</option>
+                            </select>
+                        </div>
+                        <div class="checkbox-group">
+                            <label for="guidance" style="margin:0">Guidance:</label>
+                            <select id="guidance">
+                                <option value="">Auto</option>
+                                <option value="random" selected>Random</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3.5">3.5</option>
+                                <option value="5">5</option>
+                                <option value="7">7</option>
+                                <option value="10">10</option>
+                            </select>
+                        </div>
+                        <div class="checkbox-group">
+                            <label for="count" style="margin:0">Count:</label>
+                            <input type="number" id="count" value="1" min="1" max="10">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 12px;">
+                        <button class="btn-primary" id="generate-btn" onclick="generate()" style="flex: 1;">Add to Queue</button>
+                        <button type="button" onclick="clearForm()" style="width: auto; padding: 14px 24px; background: #333; color: #aaa;">Clear</button>
+                    </div>
+                </div>
+
+                <div class="status-bar" id="status-bar">
+                    <div>
+                        <span class="spinner"></span>
+                        <span class="status-text" id="status-text">Generating...</span>
+                    </div>
+                    <div class="current-prompt-box" id="current-prompt-box" style="display:none">
+                        <button class="copy-btn" onclick="copyPrompt(document.getElementById('current-prompt-text').textContent, this)" title="Copy to clipboard"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+                        <div class="prompt-label">Generated Prompt:</div>
+                        <div class="prompt-text" id="current-prompt-text"></div>
+                    </div>
+                </div>
+
+                <div class="results-section" id="results"></div>
+            </div>
+
+            <div id="gallery-tab" style="display:none">
+                <div class="gallery-grid" id="gallery"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="modal" onclick="closeModal()">
+        <span class="modal-close">&times;</span>
+        <img id="modal-img" src="">
+    </div>
+
+    <script>
+        let currentJobId = null;
+        let selectedJobId = null;
+        let pollInterval = null;
+        let queuePollInterval = null;
+        let selectedImageFile = null;
+        let endpointsData = [];
+        let promptMode = 'same';
+        let queueData = { pending: [], running: [], completed: [] };
+
+        function playCompletionSound() {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 880;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.3);
+        }
+
+        function setPromptMode(mode) {
+            promptMode = mode;
+            document.querySelectorAll('.prompt-mode-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+            updatePromptModeUI();
+        }
+
+        function updatePromptModeUI() {
+            const isRandom = document.getElementById('random').checked;
+            const singleGroup = document.getElementById('single-prompt-group');
+            const dualContainer = document.getElementById('dual-prompt-container');
+            const dualNote = document.getElementById('dual-prompt-note');
+
+            if (promptMode === 'different') {
+                if (isRandom) {
+                    singleGroup.style.display = 'block';
+                    dualContainer.classList.remove('visible');
+                    dualNote.classList.add('visible');
+                } else {
+                    singleGroup.style.display = 'none';
+                    dualContainer.classList.add('visible');
+                    dualNote.classList.remove('visible');
+                }
+            } else {
+                singleGroup.style.display = 'block';
+                dualContainer.classList.remove('visible');
+                dualNote.classList.remove('visible');
+            }
+        }
+
+        async function loadQueue() {
+            try {
+                const res = await fetch('/api/queue');
+                queueData = await res.json();
+                renderQueue();
+
+                if (queueData.running.length > 0 && !pollInterval) {
+                    const runningJob = queueData.running[0];
+                    currentJobId = runningJob.id;
+                    if (!selectedJobId) selectedJobId = runningJob.id;
+                    document.getElementById('status-bar').classList.add('active');
+                    pollStatus();
+                }
+            } catch (e) {
+                console.error('Failed to load queue:', e);
+            }
+        }
+
+        function renderQueue() {
+            const container = document.getElementById('queue-list');
+            const badge = document.getElementById('queue-badge');
+            const totalActive = queueData.pending.length + queueData.running.length;
+            badge.textContent = totalActive;
+
+            let html = '';
+
+            if (queueData.running.length > 0) {
+                html += '<div class="queue-section-label">Running</div>';
+                queueData.running.forEach(job => {
+                    html += renderQueueItem(job);
+                });
+            }
+
+            if (queueData.pending.length > 0) {
+                html += '<div class="queue-section-label">Pending</div>';
+                queueData.pending.forEach(job => {
+                    html += renderQueueItem(job);
+                });
+            }
+
+            if (queueData.completed.length > 0) {
+                html += '<div class="queue-section-label">Completed</div>';
+                queueData.completed.forEach(job => {
+                    html += renderQueueItem(job);
+                });
+            }
+
+            if (!html) {
+                html = '<div style="padding: 20px; text-align: center; color: #666;">Queue is empty</div>';
+            }
+
+            container.innerHTML = html;
+        }
+
+        function renderQueueItem(job) {
+            const isActive = job.id === selectedJobId;
+            const showCancel = job.status === 'queued';
+            const isDifferent = job.prompt_mode === 'different';
+
+            let promptHtml = '';
+            if (isDifferent && !job.random) {
+                const p1 = job.prompt || '';
+                const p2 = job.prompt2 || '';
+                const t1 = p1.length > 30 ? p1.slice(0, 30) + '...' : p1;
+                const t2 = p2.length > 30 ? p2.slice(0, 30) + '...' : p2;
+                promptHtml = `
+                    <div class="queue-item-prompt" style="font-size:0.75rem"><strong>1:</strong> ${escapeHtml(t1)}</div>
+                    <div class="queue-item-prompt" style="font-size:0.75rem"><strong>2:</strong> ${escapeHtml(t2)}</div>
+                `;
+            } else {
+                const promptPreview = job.prompt || (job.random ? '(Random)' : '');
+                const truncatedPrompt = promptPreview.length > 40 ? promptPreview.slice(0, 40) + '...' : promptPreview;
+                promptHtml = `<div class="queue-item-prompt">${escapeHtml(truncatedPrompt)}</div>`;
+            }
+
+            let meta = isDifferent && job.random ? 'Two random prompts' : '';
+            if (job.status === 'complete' && job.total_elapsed) {
+                const elapsed = formatTime(job.total_elapsed);
+                meta = meta ? `${meta} · ${elapsed}` : elapsed;
+            }
+
+            return `
+                <div class="queue-item ${job.status} ${isActive ? 'active' : ''}" onclick="selectJob('${job.id}')">
+                    ${showCancel ? `<button class="queue-item-cancel" onclick="cancelJob(event, '${job.id}')">&times;</button>` : ''}
+                    <div class="queue-item-header">
+                        <div class="queue-item-status ${job.status}"></div>
+                        <span class="queue-item-id">#${job.id}</span>
+                        ${job.status === 'running' && job.current_run ? `<span class="queue-item-id">${job.current_run}/${job.count}</span>` : ''}
+                    </div>
+                    ${promptHtml}
+                    ${meta ? `<div class="queue-item-meta">${meta}</div>` : ''}
+                </div>
+            `;
+        }
+
+        async function selectJob(jobId) {
+            selectedJobId = jobId;
+            renderQueue();
+
+            const res = await fetch(`/api/status/${jobId}`);
+            const job = await res.json();
+
+            if (job.status === 'running') {
+                currentJobId = jobId;
+                document.getElementById('status-bar').classList.add('active');
+                if (!pollInterval) pollStatus();
+            }
+
+            if (job.results && job.results.length > 0) {
+                displayResults(job.results);
+            }
+        }
+
+        async function cancelJob(event, jobId) {
+            event.stopPropagation();
+            try {
+                await fetch(`/api/queue/${jobId}`, { method: 'DELETE' });
+                loadQueue();
+            } catch (e) {
+                console.error('Failed to cancel job:', e);
+            }
+        }
+
+        async function clearQueue() {
+            try {
+                await fetch('/api/queue/clear', { method: 'POST' });
+                loadQueue();
+                document.getElementById('results').innerHTML = '';
+            } catch (e) {
+                console.error('Failed to clear queue:', e);
+            }
+        }
+
+        async function loadEndpoints() {
+            try {
+                const res = await fetch('/api/endpoints');
+                endpointsData = await res.json();
+                renderEndpoints();
+            } catch (e) {
+                console.error('Failed to load endpoints:', e);
+            }
+        }
+
+        let generationStartTime = null;
+
+        function renderEndpoints(jobEndpointStatus = null, jobStartedAt = null, llmStatus = null) {
+            const container = document.getElementById('endpoints-bar');
+            const now = Date.now() / 1000;
+
+            let llmHtml = '';
+            if (llmStatus) {
+                let dotClass = llmStatus.state || 'idle';
+                let statusText = llmStatus.state || 'idle';
+                let timeText = '';
+                let detailText = llmStatus.model || 'LM Studio';
+
+                if (llmStatus.state === 'generating' && llmStatus.start_time) {
+                    const elapsed = now - llmStatus.start_time;
+                    timeText = formatTime(elapsed);
+                } else if (llmStatus.elapsed !== null && llmStatus.elapsed !== undefined) {
+                    timeText = formatTime(llmStatus.elapsed);
+                }
+
+                if (llmStatus.mode) {
+                    detailText += ` (${llmStatus.mode})`;
+                }
+                if (llmStatus.source === 'fallback') {
+                    statusText = 'fallback';
+                    dotClass = 'error';
+                }
+
+                llmHtml = `
+                    <div class="endpoint-card llm-card">
+                        <div class="endpoint-dot ${dotClass}"></div>
+                        <div class="endpoint-info">
+                            <div class="endpoint-name">LLM Prompt</div>
+                            <div class="endpoint-detail">${detailText}</div>
+                        </div>
+                        <div class="endpoint-status-text">
+                            ${statusText}${timeText ? ' <strong>' + timeText + '</strong>' : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            const endpointsHtml = endpointsData.map(ep => {
+                let dotClass = ep.status;
+                let statusText = ep.status;
+                let timeText = '';
+
+                if (jobEndpointStatus && jobEndpointStatus[ep.name]) {
+                    const epStatus = jobEndpointStatus[ep.name];
+                    if (typeof epStatus === 'object') {
+                        dotClass = epStatus.state;
+                        if (epStatus.state === 'generating' && epStatus.start_time) {
+                            const elapsed = now - epStatus.start_time;
+                            timeText = formatTime(elapsed);
+                            statusText = 'generating';
+                        } else if (epStatus.elapsed !== null) {
+                            timeText = formatTime(epStatus.elapsed);
+                            statusText = epStatus.state;
+                        } else {
+                            statusText = epStatus.state;
+                        }
+                    } else {
+                        dotClass = epStatus;
+                        statusText = epStatus;
+                    }
+                }
+
+                return `
+                    <div class="endpoint-card">
+                        <div class="endpoint-dot ${dotClass}"></div>
+                        <div class="endpoint-info">
+                            <div class="endpoint-name">${ep.name}</div>
+                            <div class="endpoint-detail">${ep.ip}:${ep.port}</div>
+                        </div>
+                        <div class="endpoint-status-text">
+                            ${statusText}${timeText ? ' <strong>' + timeText + '</strong>' : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = llmHtml + endpointsHtml;
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            if (mins > 0) {
+                return `${mins}m ${secs}s`;
+            }
+            return `${secs}s`;
+        }
+
+        loadEndpoints();
+        loadQueue();
+        setInterval(loadEndpoints, 30000);
+        setInterval(loadQueue, 2000);
+
+        const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        const MAX_IMAGE_DIMENSION = 2048;
+
+        const uploadArea = document.getElementById('image-upload');
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+                    showImageError(`Invalid format: ${file.type || 'unknown'}`);
+                    return;
+                }
+                document.getElementById('image-input').files = files;
+                handleImageSelect({ target: { files: files } });
+            }
+        });
+
+        function showImageError(message) {
+            const uploadContent = document.getElementById('upload-content');
+            uploadContent.innerHTML = `
+                <div class="image-upload-text" style="color: #e74c3c;">
+                    ${message}
+                    <br><small style="color: #999; margin-top: 8px; display: block;">Supported formats: JPEG, PNG, WebP, GIF</small>
+                </div>
+            `;
+            setTimeout(() => {
+                if (!selectedImageFile) {
+                    uploadContent.innerHTML = `<div class="image-upload-text">Click or drag an image here</div>`;
+                }
+            }, 3000);
+        }
+
+        function resizeImageIfNeeded(file, callback) {
+            const img = new Image();
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                img.onload = () => {
+                    if (img.width <= MAX_IMAGE_DIMENSION && img.height <= MAX_IMAGE_DIMENSION) {
+                        callback(file, e.target.result);
+                        return;
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_IMAGE_DIMENSION) {
+                            height = Math.round(height * MAX_IMAGE_DIMENSION / width);
+                            width = MAX_IMAGE_DIMENSION;
+                        }
+                    } else {
+                        if (height > MAX_IMAGE_DIMENSION) {
+                            width = Math.round(width * MAX_IMAGE_DIMENSION / height);
+                            height = MAX_IMAGE_DIMENSION;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob((blob) => {
+                        const resizedFile = new File([blob], file.name, { type: 'image/jpeg' });
+                        const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                        console.log(`[Image] Resized from ${img.width}x${img.height} to ${width}x${height}`);
+                        callback(resizedFile, resizedDataUrl);
+                    }, 'image/jpeg', 0.9);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function handleImageSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+                showImageError(`Invalid format: ${file.type || 'unknown'}`);
+                document.getElementById('image-input').value = '';
+                return;
+            }
+
+            resizeImageIfNeeded(file, (processedFile, dataUrl) => {
+                selectedImageFile = processedFile;
+                document.getElementById('upload-content').innerHTML = `
+                    <img src="${dataUrl}" class="image-preview">
+                    <br><button type="button" class="clear-image" onclick="clearImage(event)">Remove</button>
+                `;
+                uploadArea.classList.add('has-image');
+            });
+        }
+
+        function clearImage(event) {
+            if (event) event.stopPropagation();
+            selectedImageFile = null;
+            document.getElementById('image-input').value = '';
+            document.getElementById('upload-content').innerHTML = `
+                <div class="image-upload-text">Click or drag an image here</div>
+            `;
+            uploadArea.classList.remove('has-image');
+        }
+
+        function clearForm() {
+            document.getElementById('prompt').value = '';
+            document.getElementById('prompt1').value = '';
+            document.getElementById('prompt2').value = '';
+            clearImage(null);
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function useAsInput(imageUrl, event) {
+            event.stopPropagation();
+            try {
+                const response = await fetch(imageUrl);
+                const blob = await response.blob();
+                const filename = imageUrl.split('/').pop();
+                selectedImageFile = new File([blob], filename, { type: blob.type });
+
+                document.getElementById('upload-content').innerHTML = `
+                    <img src="${imageUrl}" class="image-preview">
+                    <br><button type="button" class="clear-image" onclick="clearImage(event)">Remove</button>
+                `;
+                uploadArea.classList.add('has-image');
+
+                showTab('generate');
+                document.getElementById('image-upload').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch (e) {
+                console.error('Failed to load image:', e);
+                alert('Failed to load image as input');
+            }
+        }
+
+        function showTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab[onclick="showTab('${tab}')"]`).classList.add('active');
+            document.getElementById('generate-tab').style.display = tab === 'generate' ? 'block' : 'none';
+            document.getElementById('gallery-tab').style.display = tab === 'gallery' ? 'block' : 'none';
+            if (tab === 'gallery') loadGallery();
+        }
+
+        async function generate() {
+            const random = document.getElementById('random').checked;
+            const count = parseInt(document.getElementById('count').value) || 1;
+            const orientation = document.getElementById('orientation').value;
+            const size = '1mp';
+            const steps = 25;
+            const seed = null;
+            const strength = 0.75;
+            const guidance = document.getElementById('guidance').value;
+
+            let prompt, prompt2;
+            if (promptMode === 'different' && !random) {
+                prompt = document.getElementById('prompt1').value;
+                prompt2 = document.getElementById('prompt2').value;
+                if (!prompt.trim() && !prompt2.trim()) {
+                    alert('Please enter at least one prompt');
+                    return;
+                }
+            } else {
+                prompt = document.getElementById('prompt').value;
+                prompt2 = '';
+            }
+
+            if (!random && !prompt.trim()) {
+                alert('Please enter a prompt or enable random mode');
+                return;
+            }
+
+            document.getElementById('generate-btn').disabled = true;
+
+            try {
+                let res;
+                if (selectedImageFile) {
+                    const formData = new FormData();
+                    formData.append('prompt', prompt);
+                    formData.append('prompt2', prompt2);
+                    formData.append('prompt_mode', promptMode);
+                    formData.append('random', random);
+                    formData.append('count', count);
+                    formData.append('orientation', orientation);
+                    formData.append('size', size);
+                    formData.append('steps', steps);
+                    if (seed !== null) formData.append('seed', seed);
+                    formData.append('strength', strength);
+                    if (guidance) formData.append('guidance_scale', guidance);
+                    formData.append('image', selectedImageFile);
+                    res = await fetch('/api/generate', {
+                        method: 'POST',
+                        body: formData
+                    });
+                } else {
+                    res = await fetch('/api/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt, prompt2, prompt_mode: promptMode, random, count, orientation, size, steps, seed, guidance_scale: guidance || undefined })
+                    });
+                }
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+
+                document.getElementById('generate-btn').disabled = false;
+                loadQueue();
+
+                if (data.queue_position === 0) {
+                    currentJobId = data.job_id;
+                    selectedJobId = data.job_id;
+                    document.getElementById('status-bar').classList.add('active');
+                    document.getElementById('status-text').textContent = 'Starting...';
+                    pollStatus();
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+                document.getElementById('generate-btn').disabled = false;
+            }
+        }
+
+        function pollStatus() {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`/api/status/${currentJobId}`);
+                    const job = await res.json();
+
+                    loadQueue();
+
+                    if (job.status === 'running') {
+                        const llmState = job.llm_status?.state;
+                        if (llmState === 'generating') {
+                            document.getElementById('status-text').textContent =
+                                `Run ${job.current_run}/${job.count}: Generating prompt...`;
+                        } else {
+                            document.getElementById('status-text').textContent =
+                                `Run ${job.current_run}/${job.count}: Generating images...`;
+                        }
+
+                        if (job.current_prompt) {
+                            document.getElementById('current-prompt-box').style.display = 'block';
+                            document.getElementById('current-prompt-text').textContent = job.current_prompt;
+                        }
+
+                        renderEndpoints(job.endpoint_status, null, job.llm_status);
+                    }
+
+                    if (job.status === 'complete') {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                        displayResults(job.results);
+                        resetUI();
+                        document.getElementById('current-prompt-box').style.display = 'none';
+                        renderEndpoints();
+                        playCompletionSound();
+                        loadQueue();
+                        startNextJobPolling();
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }, 1000);
+        }
+
+        function startNextJobPolling() {
+            setTimeout(async () => {
+                await loadQueue();
+                if (queueData.running.length > 0) {
+                    const nextJob = queueData.running[0];
+                    currentJobId = nextJob.id;
+                    selectedJobId = nextJob.id;
+                    document.getElementById('status-bar').classList.add('active');
+                    document.getElementById('status-text').textContent = 'Starting...';
+                    pollStatus();
+                }
+            }, 500);
+        }
+
+        function displayResults(results) {
+            const container = document.getElementById('results');
+            let html = '';
+
+            for (const run of results) {
+                const hasDifferentPrompts = run.endpoint_prompts &&
+                    Object.values(run.endpoint_prompts).some((p, i, arr) => i > 0 && p !== arr[0]);
+
+                html += `<div class="result-group">`;
+                html += `<div class="image-grid">`;
+
+                for (const img of run.images) {
+                    if (img.success) {
+                        const filename = img.local_path.split('/').pop();
+                        const promptUsed = img.prompt_used || run.prompt;
+                        html += `<div class="image-card">
+                            <img src="/images/${filename}" onclick="openModal(this.src)" loading="lazy">
+                            <div class="image-meta">
+                                <span class="endpoint">${img.endpoint.name}</span><br>
+                                ${hasDifferentPrompts ? `<div style="color:#ccc;margin:4px 0;font-size:0.75rem">${escapeHtml(promptUsed.slice(0, 80))}${promptUsed.length > 80 ? '...' : ''} <button class="copy-btn" data-prompt="${escapeHtml(promptUsed)}" onclick="copyPrompt(this.dataset.prompt, this)" title="Copy to clipboard"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>` : ''}
+                                Seed: ${img.stats?.seed || 'N/A'}${run.guidance_scale != null ? ` | G: ${run.guidance_scale}` : ''} | ${img.duration?.toFixed(1)}s
+                                <button class="use-as-input-btn" onclick="useAsInput('/images/${filename}', event)">Use as input</button>
+                            </div>
+                        </div>`;
+                    } else {
+                        html += `<div class="image-card">
+                            <div class="image-error">${img.endpoint.name}<br>${img.error}</div>
+                        </div>`;
+                    }
+                }
+                html += '</div>';
+                if (!hasDifferentPrompts) {
+                    const promptId = `prompt-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                    html += `<div class="result-prompt" style="margin-top:12px;margin-bottom:0"><strong>Prompt:</strong> <button class="copy-btn" onclick="copyPrompt(document.getElementById('${promptId}').textContent, this)" title="Copy to clipboard"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button><span id="${promptId}">${escapeHtml(run.prompt)}</span></div>`;
+                }
+                html += '</div>';
+            }
+
+            container.innerHTML = html;
+        }
+
+        function resetUI() {
+            document.getElementById('generate-btn').disabled = false;
+            document.getElementById('status-bar').classList.remove('active');
+        }
+
+        async function loadGallery() {
+            try {
+                const res = await fetch('/api/gallery');
+                const images = await res.json();
+
+                document.getElementById('gallery').innerHTML = images.map(img =>
+                    `<div class="gallery-item">
+                        <img src="${img.url}" onclick="openModal(this.src)" loading="lazy">
+                        <div class="gallery-item-actions">
+                            <button class="use-as-input-btn" onclick="useAsInput('${img.url}', event)">Use as input</button>
+                        </div>
+                    </div>`
+                ).join('');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function openModal(src) {
+            document.getElementById('modal-img').src = src;
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function copyPrompt(text, button) {
+            try {
+                await navigator.clipboard.writeText(text);
+                const originalHtml = button.innerHTML;
+                button.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';
+                button.classList.add('copied');
+                setTimeout(() => {
+                    button.innerHTML = originalHtml;
+                    button.classList.remove('copied');
+                }, 1500);
+            } catch (e) {
+                console.error('Failed to copy:', e);
+            }
+        }
+
+        document.querySelectorAll('textarea').forEach(ta => {
+            ta.addEventListener('focus', () => ta.classList.add('expanded'));
+            ta.addEventListener('blur', () => {
+                if (!ta.value.trim()) ta.classList.remove('expanded');
+            });
+        });
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

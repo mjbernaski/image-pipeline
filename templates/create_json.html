@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scene JSON Generator</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0e0e10;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 720px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+
+  .section {
+    background: #1a1a1e;
+    border: 1px solid #2a2a2e;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .section-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    margin-bottom: 1rem;
+  }
+
+  .field { margin-bottom: 1rem; }
+  .field:last-child { margin-bottom: 0; }
+
+  label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #aaa;
+    margin-bottom: 0.35rem;
+  }
+
+  input[type="text"], input[type="number"], textarea {
+    width: 100%;
+    background: #111113;
+    border: 1px solid #2a2a2e;
+    border-radius: 6px;
+    padding: 0.55rem 0.7rem;
+    color: #e0e0e0;
+    font-size: 0.85rem;
+    font-family: inherit;
+    transition: border-color 0.15s;
+  }
+
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: #5a5af0;
+  }
+
+  textarea { resize: vertical; min-height: 60px; }
+
+  .tag-input-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    background: #111113;
+    border: 1px solid #2a2a2e;
+    border-radius: 6px;
+    padding: 0.4rem 0.5rem;
+    min-height: 38px;
+    cursor: text;
+    transition: border-color 0.15s;
+  }
+
+  .tag-input-wrapper:focus-within { border-color: #5a5af0; }
+
+  .tag {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: #2a2a3a;
+    border-radius: 4px;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.78rem;
+    color: #ccc;
+    white-space: nowrap;
+  }
+
+  .tag button {
+    background: none;
+    border: none;
+    color: #777;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0;
+  }
+
+  .tag button:hover { color: #f55; }
+
+  .tag-input {
+    border: none !important;
+    background: none !important;
+    padding: 0.15rem 0 !important;
+    min-width: 80px;
+    flex: 1;
+    font-size: 0.8rem;
+    color: #e0e0e0;
+  }
+
+  .tag-input:focus { outline: none; }
+  .tag-hint { font-size: 0.7rem; color: #555; margin-top: 0.25rem; }
+
+  .row { display: flex; gap: 0.75rem; }
+  .row > .field { flex: 1; }
+
+  .subject-card {
+    background: #141416;
+    border: 1px solid #252528;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    position: relative;
+  }
+
+  .subject-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+
+  .subject-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #777;
+  }
+
+  .btn {
+    padding: 0.4rem 0.85rem;
+    border-radius: 6px;
+    border: 1px solid #2a2a2e;
+    background: #1a1a1e;
+    color: #ccc;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .btn:hover { background: #222226; border-color: #3a3a3e; }
+
+  .btn-remove {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0.2rem 0.5rem;
+  }
+
+  .btn-remove:hover { color: #f55; }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    position: sticky;
+    bottom: 1rem;
+  }
+
+  .btn-primary {
+    flex: 1;
+    padding: 0.7rem 1rem;
+    border-radius: 8px;
+    border: none;
+    background: #5a5af0;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-primary:hover { background: #4a4ae0; }
+
+  .btn-secondary {
+    padding: 0.7rem 1rem;
+    border-radius: 8px;
+    border: 1px solid #2a2a2e;
+    background: #1a1a1e;
+    color: #ccc;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-secondary:hover { background: #222226; }
+
+  .btn-send {
+    padding: 0.7rem 1rem;
+    border-radius: 8px;
+    border: none;
+    background: #2a9d5c;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-send:hover { background: #238a4f; }
+  .btn-send:disabled { background: #1a5c36; color: #6b9; cursor: not-allowed; }
+
+  .btn-ai {
+    padding: 0.7rem 1rem;
+    border-radius: 8px;
+    border: none;
+    background: #d97706;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-ai:hover { background: #b45309; }
+  .btn-ai:disabled { background: #78501a; color: #c9a66b; cursor: not-allowed; }
+
+  .ai-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .ai-bar {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .ai-seed {
+    flex: 1;
+    background: #111113;
+    border: 1px solid #2a2a2e;
+    border-radius: 6px;
+    padding: 0.55rem 0.6rem;
+    color: #d97706;
+    font-size: 0.8rem;
+    font-family: inherit;
+  }
+
+  .ai-seed:focus { outline: none; border-color: #d97706; }
+
+  .ai-model-select {
+    background: #111113;
+    border: 1px solid #2a2a2e;
+    border-radius: 6px;
+    padding: 0.55rem 0.5rem;
+    color: #d97706;
+    font-size: 0.78rem;
+    font-family: inherit;
+    max-width: 220px;
+  }
+
+  .ai-model-select:focus { outline: none; border-color: #d97706; }
+
+  .ai-count {
+    width: 48px;
+    background: #111113;
+    border: 1px solid #2a2a2e;
+    border-radius: 6px;
+    padding: 0.55rem 0.4rem;
+    color: #d97706;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    font-family: inherit;
+  }
+
+  .ai-count:focus { outline: none; border-color: #d97706; }
+
+  .endpoint-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.75rem;
+    color: #555;
+  }
+
+  .endpoint-bar span { color: #777; }
+  .endpoint-bar code {
+    background: #1a1a1e;
+    border: 1px solid #2a2a2e;
+    border-radius: 4px;
+    padding: 0.15rem 0.4rem;
+    color: #9a9aef;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.75rem;
+  }
+
+  .saves-bar {
+    background: #1a1a1e;
+    border: 1px solid #2a2a2e;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .saves-bar select {
+    background: #111113;
+    border: 1px solid #2a2a2e;
+    border-radius: 6px;
+    padding: 0.4rem 0.5rem;
+    color: #e0e0e0;
+    font-size: 0.78rem;
+    font-family: inherit;
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .saves-bar select:focus { outline: none; border-color: #5a5af0; }
+
+  .saves-bar input[type="text"] {
+    background: #111113;
+    border: 1px solid #2a2a2e;
+    border-radius: 6px;
+    padding: 0.4rem 0.5rem;
+    color: #e0e0e0;
+    font-size: 0.78rem;
+    font-family: inherit;
+    width: 120px;
+  }
+
+  .saves-bar input[type="text"]:focus { outline: none; border-color: #5a5af0; }
+
+  .btn-sm {
+    padding: 0.35rem 0.6rem;
+    border-radius: 5px;
+    border: 1px solid #2a2a2e;
+    background: #222226;
+    color: #bbb;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn-sm:hover { background: #2a2a30; border-color: #3a3a3e; }
+  .btn-sm.danger:hover { border-color: #f55; color: #f55; }
+
+  .preview {
+    background: #111113;
+    border: 1px solid #2a2a2e;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.78rem;
+    color: #9a9aef;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 400px;
+    overflow-y: auto;
+    display: none;
+  }
+
+  .summary {
+    background: #1a1a1e;
+    border: 1px solid #d9770640;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #ccc;
+    max-height: 500px;
+    overflow-y: auto;
+    display: none;
+  }
+
+  .summary h1, .summary h2, .summary h3 {
+    color: #d97706;
+    margin: 1rem 0 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  .summary h1:first-child, .summary h2:first-child, .summary h3:first-child { margin-top: 0; }
+  .summary p { margin: 0.5rem 0; }
+  .summary strong { color: #e0e0e0; }
+  .summary em { color: #aaa; }
+
+  .summary ul, .summary ol {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+  }
+
+  .summary li { margin: 0.25rem 0; }
+
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #5a5af0;
+    color: #fff;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 1rem 0.5rem; }
+
+    .row { flex-direction: column; gap: 0; }
+
+    .saves-bar { gap: 0.4rem; }
+    .saves-bar select { min-width: 100%; }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    .actions .btn-primary,
+    .actions .btn-send,
+    .actions .btn-secondary {
+      width: 100%;
+      text-align: center;
+    }
+
+    .ai-group {
+      grid-column: 1 / -1;
+      width: 100%;
+      flex-wrap: wrap;
+    }
+
+    .btn-ai { flex: 1; }
+
+    .ai-bar { flex-direction: column; }
+    .ai-model-select { max-width: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Scene JSON Generator</h1>
+  <div class="endpoint-bar">
+    <span>Endpoint:</span> <code id="endpoint-display">loading...</code>
+  </div>
+
+  <div class="saves-bar">
+    <select id="saves-select"><option value="">-- Saved Scenes --</option></select>
+    <button class="btn-sm" onclick="loadScene()">Load</button>
+    <input type="text" id="save-name" placeholder="Scene name...">
+    <button class="btn-sm" onclick="saveScene()">Save</button>
+    <button class="btn-sm danger" onclick="deleteScene()">Delete</button>
+    <button class="btn-sm" onclick="exportScenes()">Export</button>
+    <button class="btn-sm" onclick="document.getElementById('import-file').click()">Import</button>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importScenes(event)">
+  </div>
+
+  <div class="section">
+    <div class="section-title">Scene</div>
+    <div class="field">
+      <label for="scene">Description</label>
+      <textarea id="scene" placeholder="e.g. Professional studio product photography setup with polished concrete surface"></textarea>
+    </div>
+    <div class="field">
+      <label for="props">Props / Foreground Elements</label>
+      <input type="text" id="props" placeholder="e.g. scattered coffee beans, linen napkin, vintage spoon">
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Subjects</div>
+    <div id="subjects-list"></div>
+    <button class="btn" onclick="addSubject()">+ Add Subject</button>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Style &amp; Mood</div>
+    <div class="field">
+      <label for="style">Style</label>
+      <input type="text" id="style" placeholder="e.g. ultra-realistic product photography">
+    </div>
+    <div class="field">
+      <label>Color Palette</label>
+      <div class="tag-input-wrapper" id="color-palette-tags"></div>
+      <div class="tag-hint">Type a color and press Enter</div>
+    </div>
+    <div class="field">
+      <label for="mood">Mood</label>
+      <input type="text" id="mood" placeholder="e.g. clean, minimal, professional">
+    </div>
+    <div class="field">
+      <label for="film-stock">Film Stock / Post-processing</label>
+      <input type="text" id="film-stock" placeholder="e.g. Kodak Portra 400, Fuji Velvia, desaturated">
+    </div>
+    <div class="field">
+      <label for="era">Era / Period</label>
+      <input type="text" id="era" placeholder="e.g. 1970s, modern, retro-futuristic">
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Environment</div>
+    <div class="field">
+      <label for="lighting">Lighting</label>
+      <input type="text" id="lighting" placeholder="e.g. three-point softbox, soft diffused highlights">
+    </div>
+    <div class="field">
+      <label for="background">Background</label>
+      <input type="text" id="background" placeholder="e.g. polished concrete surface, neutral studio backdrop">
+    </div>
+    <div class="field">
+      <label for="composition">Composition</label>
+      <input type="text" id="composition" placeholder="e.g. rule of thirds">
+    </div>
+    <div class="field">
+      <label for="time-weather">Time of Day / Weather</label>
+      <input type="text" id="time-weather" placeholder="e.g. golden hour, overcast, foggy morning, blue hour">
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Camera</div>
+    <div class="row">
+      <div class="field">
+        <label for="cam-angle">Angle</label>
+        <input type="text" id="cam-angle" placeholder="e.g. high">
+      </div>
+      <div class="field">
+        <label for="cam-distance">Distance</label>
+        <input type="text" id="cam-distance" placeholder="e.g. medium shot">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="cam-lens">Lens</label>
+        <input type="text" id="cam-lens" placeholder="e.g. 85mm">
+      </div>
+      <div class="field">
+        <label for="cam-fnumber">f-number</label>
+        <input type="text" id="cam-fnumber" placeholder="e.g. f/5.6">
+      </div>
+      <div class="field">
+        <label for="cam-iso">ISO</label>
+        <input type="number" id="cam-iso" placeholder="e.g. 200">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="cam-shutter">Shutter Speed</label>
+        <input type="text" id="cam-shutter" placeholder="e.g. 1/250s, 1/15s, 30s">
+      </div>
+      <div class="field">
+        <label for="cam-aspect">Aspect Ratio</label>
+        <input type="text" id="cam-aspect" placeholder="e.g. 16:9, 4:3, 1:1, 2.39:1">
+      </div>
+    </div>
+    <div class="field">
+      <label for="cam-focus">Focus</label>
+      <input type="text" id="cam-focus" placeholder="e.g. sharp focus on steam and mug details">
+    </div>
+  </div>
+
+  <div class="ai-bar">
+    <input type="text" id="ai-seed" class="ai-seed" placeholder="Starter idea...">
+    <select id="ai-model" class="ai-model-select"><option value="">Loading models...</option></select>
+  </div>
+  <div class="actions">
+    <button class="btn-primary" onclick="copyJSON()">Copy JSON</button>
+    <button class="btn-send" onclick="sendJSON()">Send</button>
+    <div class="ai-group">
+      <input type="number" id="ai-count" class="ai-count" value="1" min="1" max="50">
+      <input type="number" id="ai-temp" class="ai-count" value="2" min="0" max="2" step="0.1">
+      <button class="btn-ai" onclick="aiFill()">AI Fill</button>
+    </div>
+    <button class="btn-secondary" onclick="togglePreview()">Preview</button>
+    <button class="btn-secondary" onclick="clearForm()">Clear</button>
+  </div>
+
+  <pre class="preview" id="preview"></pre>
+  <div class="summary" id="summary"></div>
+</div>
+
+<div class="toast" id="toast">Copied to clipboard</div>
+
+<script>
+let subjectCount = 0;
+let endpointUrl = 'http://localhost:5050';
+let generatePath = '/api/generate';
+let lmModel = 'openai/gpt-oss-20b';
+
+fetch('config.json')
+  .then(r => r.json())
+  .then(cfg => {
+    if (cfg.endpoint) endpointUrl = cfg.endpoint;
+    if (cfg.generatePath) generatePath = cfg.generatePath;
+    if (cfg.lmModel) lmModel = cfg.lmModel;
+    document.getElementById('endpoint-display').textContent = endpointUrl;
+  })
+  .catch(() => {
+    document.getElementById('endpoint-display').textContent = endpointUrl;
+  });
+
+function loadModels() {
+  fetch('/lm/v1/models')
+    .then(r => r.json())
+    .then(data => {
+      const sel = document.getElementById('ai-model');
+      sel.innerHTML = '';
+      (data.data || []).forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.id;
+        if (m.id === lmModel) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      if (!sel.value && sel.options.length) sel.selectedIndex = 0;
+    })
+    .catch(() => {
+      const sel = document.getElementById('ai-model');
+      sel.innerHTML = `<option value="${lmModel}">${lmModel}</option>`;
+    });
+}
+loadModels();
+
+function getSelectedModel() {
+  return document.getElementById('ai-model').value || lmModel;
+}
+
+const AI_SYSTEM_PROMPT = `You are a creative photography scene generator. Output ONLY valid JSON (no markdown, no code fences) matching this exact schema:
+{
+  "scene": "string - overall scene/environment description",
+  "props": "string - foreground elements and props that add depth (e.g. scattered leaves, vintage books, candles)",
+  "subjects": [
+    {
+      "description": "string - detailed subject description",
+      "position": "string - where in the frame (e.g. center foreground, left third)",
+      "color_palette": ["string - colors associated with this subject"]
+    }
+  ],
+  "style": "string - photographic style (e.g. cinematic, editorial, product photography)",
+  "color_palette": ["string - overall color palette, 3-5 colors"],
+  "lighting": "string - lighting setup description",
+  "mood": "string - emotional tone/atmosphere",
+  "film_stock": "string - film stock or post-processing look (e.g. Kodak Portra 400, Fuji Velvia, matte desaturated)",
+  "era": "string - time period or aesthetic era (e.g. 1970s, modern, retro-futuristic, Victorian)",
+  "background": "string - background description",
+  "composition": "string - compositional technique",
+  "time_weather": "string - time of day and weather conditions (e.g. golden hour, overcast, foggy morning, blue hour, harsh midday sun)",
+  "camera": {
+    "angle": "string - camera angle (e.g. low, eye-level, high, dutch)",
+    "distance": "string - shot type (e.g. close-up, medium shot, wide shot)",
+    "lens": "string - focal length (e.g. 35mm, 50mm, 85mm, 200mm)",
+    "f_number": "string - aperture (e.g. f/1.4, f/2.8, f/8)",
+    "iso": "number - ISO value (e.g. 100, 200, 400, 800)",
+    "shutter_speed": "string - shutter speed (e.g. 1/2000s, 1/250s, 1/15s, 30s)",
+    "aspect_ratio": "string - frame aspect ratio (e.g. 3:2, 4:3, 16:9, 1:1, 2.39:1)",
+    "focus": "string - focus description"
+  }
+}
+Include 1-3 subjects. Be vivid, specific, and technically accurate with camera settings. Every field must be filled.`;
+
+async function aiGenerate(sceneHint) {
+  const userPrompt = sceneHint
+    ? `Generate a detailed photography scene based on this idea: "${sceneHint}". Fill in all fields with creative, coherent details that build around this concept.`
+    : 'Generate a creative, detailed photography scene description. Pick an interesting and visually compelling scenario.';
+
+  const res = await fetch('/lm/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: getSelectedModel(),
+      messages: [
+        { role: 'system', content: AI_SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: parseFloat(document.getElementById('ai-temp').value) || 2
+    })
+  });
+
+  if (!res.ok) throw new Error(`LM Studio returned ${res.status}`);
+
+  const data = await res.json();
+  let content = data.choices[0].message.content.trim();
+  content = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
+  try {
+    return JSON.parse(content);
+  } catch {
+    const match = content.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Could not parse AI response as JSON');
+  }
+}
+
+async function aiSend(sceneData) {
+  const payload = { prompt: JSON.stringify(sceneData, null, 2), random: false, count: 1 };
+  const res = await fetch(generatePath, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+}
+
+async function aiFill() {
+  const btn = document.querySelector('.btn-ai');
+  const count = Math.max(1, parseInt(document.getElementById('ai-count').value, 10) || 1);
+  const sceneHint = document.getElementById('ai-seed').value.trim();
+
+  btn.disabled = true;
+  let sent = 0;
+  let errors = 0;
+  const allScenes = [];
+
+  try {
+    for (let i = 0; i < count; i++) {
+      btn.textContent = count > 1 ? `${i + 1}/${count}...` : 'Generating...';
+      const scene = await aiGenerate(sceneHint);
+      allScenes.push(scene);
+      populateForm(scene);
+
+      btn.textContent = count > 1 ? `${i + 1}/${count} sending...` : 'Sending...';
+      try {
+        await aiSend(scene);
+        sent++;
+      } catch (e) {
+        errors++;
+      }
+    }
+
+    if (errors === 0) {
+      showToast(`AI filled & sent ${sent} scene${sent > 1 ? 's' : ''}`);
+    } else {
+      showToast(`Sent ${sent}, failed ${errors}`);
+    }
+
+    if (allScenes.length > 1) {
+      btn.textContent = 'Summarizing...';
+      try {
+        const summary = await aiSummarize(allScenes);
+        const el = document.getElementById('summary');
+        el.innerHTML = marked.parse(summary);
+        el.style.display = 'block';
+      } catch {}
+    }
+  } catch (e) {
+    showToast(e.message || 'AI fill failed');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'AI Fill';
+  }
+}
+
+async function aiSummarize(scenes) {
+  const scenesText = scenes.map((s, i) => `Scene ${i + 1}:\n${JSON.stringify(s, null, 2)}`).join('\n\n');
+
+  const res = await fetch('/lm/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: getSelectedModel(),
+      messages: [
+        { role: 'system', content: 'You summarize the variation across a batch of photography scene descriptions. Be concise. No more than 300 words. Describe the range of subjects, styles, moods, lighting, and camera choices. Highlight what differs and what stays consistent across the batch.' },
+        { role: 'user', content: `Here are ${scenes.length} generated scenes. Summarize the variation:\n\n${scenesText}` }
+      ],
+      temperature: 0.3
+    })
+  });
+
+  if (!res.ok) throw new Error(`LM Studio returned ${res.status}`);
+  const data = await res.json();
+  return data.choices[0].message.content.trim();
+}
+
+function createTagInput(container) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'tag-input';
+  input.placeholder = 'add...';
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && this.value.trim()) {
+      e.preventDefault();
+      addTag(container, this.value.trim());
+      this.value = '';
+    }
+    if (e.key === 'Backspace' && !this.value) {
+      const tags = container.querySelectorAll('.tag');
+      if (tags.length) tags[tags.length - 1].remove();
+    }
+  });
+  container.appendChild(input);
+  container.addEventListener('click', () => input.focus());
+}
+
+function addTag(container, text) {
+  const tag = document.createElement('span');
+  tag.className = 'tag';
+  tag.innerHTML = `${text}<button onclick="this.parentElement.remove()">&times;</button>`;
+  container.insertBefore(tag, container.querySelector('.tag-input'));
+}
+
+function getTags(container) {
+  return Array.from(container.querySelectorAll('.tag'))
+    .map(t => t.firstChild.textContent.trim());
+}
+
+function addSubject() {
+  subjectCount++;
+  const id = subjectCount;
+  const card = document.createElement('div');
+  card.className = 'subject-card';
+  card.id = `subject-${id}`;
+  card.innerHTML = `
+    <div class="subject-header">
+      <span class="subject-label">Subject ${id}</span>
+      <button class="btn-remove" onclick="removeSubject(${id})">Remove</button>
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea class="subj-desc" placeholder="e.g. Minimalist ceramic coffee mug with steam rising"></textarea>
+    </div>
+    <div class="field">
+      <label>Position</label>
+      <input type="text" class="subj-pos" placeholder="e.g. center foreground">
+    </div>
+    <div class="field">
+      <label>Color Palette</label>
+      <div class="tag-input-wrapper subj-colors"></div>
+      <div class="tag-hint">Type a color and press Enter</div>
+    </div>
+  `;
+  document.getElementById('subjects-list').appendChild(card);
+  createTagInput(card.querySelector('.subj-colors'));
+}
+
+function removeSubject(id) {
+  document.getElementById(`subject-${id}`)?.remove();
+}
+
+function buildJSON() {
+  const subjects = Array.from(document.querySelectorAll('.subject-card')).map(card => {
+    const obj = {
+      description: card.querySelector('.subj-desc').value,
+      position: card.querySelector('.subj-pos').value,
+      color_palette: getTags(card.querySelector('.subj-colors'))
+    };
+    if (!obj.color_palette.length) delete obj.color_palette;
+    return obj;
+  });
+
+  const iso = document.getElementById('cam-iso').value;
+
+  const data = {
+    scene: document.getElementById('scene').value,
+    props: document.getElementById('props').value,
+    subjects: subjects,
+    style: document.getElementById('style').value,
+    color_palette: getTags(document.getElementById('color-palette-tags')),
+    lighting: document.getElementById('lighting').value,
+    mood: document.getElementById('mood').value,
+    film_stock: document.getElementById('film-stock').value,
+    era: document.getElementById('era').value,
+    background: document.getElementById('background').value,
+    composition: document.getElementById('composition').value,
+    time_weather: document.getElementById('time-weather').value,
+    camera: {
+      angle: document.getElementById('cam-angle').value,
+      distance: document.getElementById('cam-distance').value,
+      lens: document.getElementById('cam-lens').value,
+      f_number: document.getElementById('cam-fnumber').value,
+      iso: iso ? parseInt(iso, 10) : 0,
+      shutter_speed: document.getElementById('cam-shutter').value,
+      aspect_ratio: document.getElementById('cam-aspect').value,
+      focus: document.getElementById('cam-focus').value
+    }
+  };
+
+  if (!data.color_palette.length) delete data.color_palette;
+  if (!data.subjects.length) delete data.subjects;
+
+  return data;
+}
+
+function copyJSON() {
+  const json = JSON.stringify(buildJSON(), null, 2);
+  navigator.clipboard.writeText(json).then(() => {
+    showToast('Copied to clipboard');
+  });
+}
+
+async function sendJSON() {
+  const btn = document.querySelector('.btn-send');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+  try {
+    const sceneJson = JSON.stringify(buildJSON(), null, 2);
+    const payload = { prompt: sceneJson, random: false, count: 1 };
+    const res = await fetch(generatePath, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    showToast('Queued successfully');
+  } catch (e) {
+    showToast(e.message || 'Failed to connect');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send';
+  }
+}
+
+function clearForm() {
+  populateForm({});
+  document.getElementById('save-name').value = '';
+  document.getElementById('saves-select').value = '';
+  document.getElementById('preview').style.display = 'none';
+  document.getElementById('summary').style.display = 'none';
+  document.getElementById('ai-seed').value = '';
+}
+
+function togglePreview() {
+  const el = document.getElementById('preview');
+  if (el.style.display === 'block') {
+    el.style.display = 'none';
+  } else {
+    el.textContent = JSON.stringify(buildJSON(), null, 2);
+    el.style.display = 'block';
+  }
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1800);
+}
+
+function getAllSaves() {
+  const saves = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.startsWith('scene_')) {
+      try { saves.push(JSON.parse(localStorage.getItem(key))); } catch {}
+    }
+  }
+  saves.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  return saves;
+}
+
+function refreshSavesList() {
+  const sel = document.getElementById('saves-select');
+  const saves = getAllSaves();
+  sel.innerHTML = '<option value="">-- Saved Scenes --</option>';
+  saves.forEach(s => {
+    const opt = document.createElement('option');
+    const date = new Date(s.timestamp).toLocaleDateString();
+    opt.value = s.id;
+    opt.textContent = `${s.name} v${s.version} (${date})`;
+    sel.appendChild(opt);
+  });
+}
+
+function saveScene() {
+  const nameInput = document.getElementById('save-name');
+  const name = nameInput.value.trim();
+  if (!name) { showToast('Enter a name first'); return; }
+
+  const saves = getAllSaves();
+  const existing = saves.filter(s => s.name === name);
+  const maxVersion = existing.reduce((m, s) => Math.max(m, s.version || 0), 0);
+
+  const entry = {
+    id: 'scene_' + Date.now(),
+    name: name,
+    version: maxVersion + 1,
+    timestamp: Date.now(),
+    data: buildJSON()
+  };
+
+  localStorage.setItem(entry.id, JSON.stringify(entry));
+  refreshSavesList();
+  document.getElementById('saves-select').value = entry.id;
+  showToast(`Saved "${name}" v${entry.version}`);
+}
+
+function loadScene() {
+  const id = document.getElementById('saves-select').value;
+  if (!id) { showToast('Select a scene first'); return; }
+  const raw = localStorage.getItem(id);
+  if (!raw) return;
+  const entry = JSON.parse(raw);
+  populateForm(entry.data);
+  document.getElementById('save-name').value = entry.name;
+  showToast(`Loaded "${entry.name}" v${entry.version}`);
+}
+
+function populateForm(data) {
+  document.getElementById('scene').value = data.scene || '';
+  document.getElementById('props').value = data.props || '';
+  document.getElementById('style').value = data.style || '';
+  document.getElementById('mood').value = data.mood || '';
+  document.getElementById('film-stock').value = data.film_stock || '';
+  document.getElementById('era').value = data.era || '';
+  document.getElementById('lighting').value = data.lighting || '';
+  document.getElementById('background').value = data.background || '';
+  document.getElementById('composition').value = data.composition || '';
+  document.getElementById('time-weather').value = data.time_weather || '';
+
+  const cam = data.camera || {};
+  document.getElementById('cam-angle').value = cam.angle || '';
+  document.getElementById('cam-distance').value = cam.distance || '';
+  document.getElementById('cam-lens').value = cam.lens || '';
+  document.getElementById('cam-fnumber').value = cam.f_number || '';
+  document.getElementById('cam-iso').value = cam.iso || '';
+  document.getElementById('cam-shutter').value = cam.shutter_speed || '';
+  document.getElementById('cam-aspect').value = cam.aspect_ratio || '';
+  document.getElementById('cam-focus').value = cam.focus || '';
+
+  const palContainer = document.getElementById('color-palette-tags');
+  palContainer.querySelectorAll('.tag').forEach(t => t.remove());
+  (data.color_palette || []).forEach(c => addTag(palContainer, c));
+
+  document.getElementById('subjects-list').innerHTML = '';
+  subjectCount = 0;
+  (data.subjects || []).forEach(subj => {
+    addSubject();
+    const card = document.getElementById(`subject-${subjectCount}`);
+    card.querySelector('.subj-desc').value = subj.description || '';
+    card.querySelector('.subj-pos').value = subj.position || '';
+    const colors = card.querySelector('.subj-colors');
+    (subj.color_palette || []).forEach(c => addTag(colors, c));
+  });
+
+  if (!data.subjects || !data.subjects.length) {
+    addSubject();
+  }
+}
+
+function deleteScene() {
+  const id = document.getElementById('saves-select').value;
+  if (!id) { showToast('Select a scene first'); return; }
+  const raw = localStorage.getItem(id);
+  if (!raw) return;
+  const entry = JSON.parse(raw);
+  if (!confirm(`Delete "${entry.name}" v${entry.version}?`)) return;
+  localStorage.removeItem(id);
+  refreshSavesList();
+  showToast('Deleted');
+}
+
+function exportScenes() {
+  const saves = getAllSaves();
+  if (!saves.length) { showToast('Nothing to export'); return; }
+  const blob = new Blob([JSON.stringify(saves, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'scenes.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importScenes(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const scenes = JSON.parse(e.target.result);
+      if (!Array.isArray(scenes)) throw new Error('Expected array');
+      let count = 0;
+      scenes.forEach(s => {
+        if (s.id && s.name && s.data) {
+          s.id = 'scene_' + Date.now() + '_' + (count++);
+          localStorage.setItem(s.id, JSON.stringify(s));
+        }
+      });
+      refreshSavesList();
+      showToast(`Imported ${count} scene(s)`);
+    } catch {
+      showToast('Invalid file');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+createTagInput(document.getElementById('color-palette-tags'));
+addSubject();
+refreshSavesList();
+</script>
+</body>
+</html>

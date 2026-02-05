@@ -1,0 +1,36 @@
+{
+    "version": "1.0",
+    "output_directory": "/Volumes/T9/dual-image-generations",
+    "logging_level": "INFO",
+    "database_path": "jobs.db",
+
+    "lm_studio_url": "http://localhost:11434",
+    "lm_studio_model": "zai-org/glm-4.6v-flash@4bit",
+    "vision_model": "qwen/qwen3-vl-30b",
+
+    "dual_gen_host": "0.0.0.0",
+    "dual_gen_port": 5050,
+    "json_from_image_host": "0.0.0.0",
+    "json_from_image_port": 4000,
+    "create_json_host": "0.0.0.0",
+    "create_json_port": 3030,
+
+    "endpoints": [
+        {"ip": "192.168.5.40", "port": 2222, "name": "Endpoint 1 (5.40)"},
+        {"ip": "192.168.5.46", "port": 2222, "name": "Endpoint 2 (5.46)"}
+    ],
+
+    "generation_defaults": {
+        "orientation": "landscape",
+        "size": "1mp",
+        "steps": 25,
+        "strength": 0.75
+    },
+
+    "validation_limits": {
+        "count": {"min": 1, "max": 100},
+        "steps": {"min": 1, "max": 150},
+        "strength": {"min": 0.0, "max": 1.0},
+        "guidance_scale": {"min": 0.0, "max": 30.0}
+    }
+}
