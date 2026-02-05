@@ -152,7 +152,7 @@ def generate_and_download(endpoint, prompt, image_base64=None, orientation=None,
         image_filename = image_info["filename"]
         download_url = f"{base_url}/images/{image_filename}"
 
-        logger.debug(f"Downloading image", extra={'endpoint': endpoint['name'], 'filename': image_filename})
+        logger.debug(f"Downloading image", extra={'endpoint': endpoint['name'], 'image_file': image_filename})
         img_response = requests.get(download_url)
         img_response.raise_for_status()
 
@@ -167,7 +167,7 @@ def generate_and_download(endpoint, prompt, image_base64=None, orientation=None,
         logger.info(f"Generation complete", extra={
             'endpoint': endpoint['name'],
             'duration': round(duration, 1),
-            'filename': local_filename,
+            'output_file': local_filename,
         })
 
         return {

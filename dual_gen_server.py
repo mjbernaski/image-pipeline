@@ -347,7 +347,7 @@ def _handle_generate():
                 image_base64 = base64.b64encode(image_data).decode("utf-8")
                 logger.debug(f"Received image", extra={
                     'correlation_id': correlation_id,
-                    'filename': image_file.filename,
+                    'image_name': image_file.filename,
                     'size': len(image_data),
                 })
     else:
