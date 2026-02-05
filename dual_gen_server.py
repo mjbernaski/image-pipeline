@@ -109,7 +109,6 @@ def run_generation(job):
     )
 
     logger.info(f"Starting generation job", extra={
-        'correlation_id': getattr(g, 'correlation_id', None),
         'job_id': job_id,
         'count': count,
         'use_random': use_random,
