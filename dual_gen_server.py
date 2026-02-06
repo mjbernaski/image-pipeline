@@ -565,13 +565,17 @@ def _handle_endpoints():
         try:
             url = f"http://{ep['ip']}:{ep['port']}/"
             resp = requests.get(url, timeout=3)
+            resp.raise_for_status()
             status["status"] = "online"
         except requests.exceptions.Timeout:
             status["status"] = "timeout"
         except requests.exceptions.ConnectionError:
             status["status"] = "offline"
-        except Exception:
-            status["status"] = "online"
+        except requests.exceptions.HTTPError:
+            status["status"] = "error"
+        except Exception as e:
+            logger.warning(f"Unexpected error checking endpoint {ep['name']}", extra={'error': str(e)})
+            status["status"] = "unknown"
         results.append(status)
     return jsonify(results)
 
