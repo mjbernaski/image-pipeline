@@ -94,6 +94,8 @@ def run_generation(job):
     seed = payload.get("seed")
     strength = payload.get("strength", 0.75)
     guidance_scale = payload.get("guidance_scale")
+    model = payload.get("model")
+    temperature = payload.get("temperature")
 
     job_state.current_job_id = job_id
     results = []
@@ -127,7 +129,7 @@ def run_generation(job):
                 job_queue.update(job_id, llm_status=llm_status)
 
                 for ep in ENDPOINTS:
-                    llm_result = prompt_gen.generate_prompt(steering_concept=steering_concept, image_base64=image_base64, return_details=True)
+                    llm_result = prompt_gen.generate_prompt(steering_concept=steering_concept, image_base64=image_base64, return_details=True, model=model, temperature=temperature)
                     endpoint_prompts[ep["name"]] = llm_result["prompt"]
 
                 llm_status = {
@@ -148,7 +150,7 @@ def run_generation(job):
                 llm_status = {"state": "generating", "start_time": time.time(), "elapsed": None, "model": None, "source": None}
                 job_queue.update(job_id, llm_status=llm_status)
 
-                llm_result = prompt_gen.generate_prompt(steering_concept=steering_concept, image_base64=image_base64, return_details=True)
+                llm_result = prompt_gen.generate_prompt(steering_concept=steering_concept, image_base64=image_base64, return_details=True, model=model, temperature=temperature)
                 current_prompt = llm_result["prompt"]
 
                 llm_status = {
@@ -207,6 +209,8 @@ def run_generation(job):
             "prompt": endpoint_prompts.get(ENDPOINTS[0]["name"], ""),
             "endpoint_prompts": endpoint_prompts,
             "guidance_scale": gs,
+            "strength": strength,
+            "steps": steps,
             "images": run_results
         })
         job_queue.update(job_id, results=results)
@@ -315,6 +319,8 @@ def _handle_generate():
             "seed": request.form.get("seed", ""),
             "strength": request.form.get("strength", 0.75),
             "guidance_scale": request.form.get("guidance_scale", ""),
+            "model": request.form.get("model", ""),
+            "temperature": request.form.get("temperature", ""),
         }
 
         if data["guidance_scale"] == "random":
@@ -381,6 +387,8 @@ def _handle_generate():
         "seed": validated["seed"],
         "strength": validated["strength"],
         "guidance_scale": validated["guidance_scale"],
+        "model": validated.get("model"),
+        "temperature": validated.get("temperature"),
     }
 
     job = job_queue.enqueue(job_id, payload)
@@ -542,6 +550,39 @@ def _handle_clear_queue():
 def serve_image(filename):
     output_dir = CONFIG.get("output_directory", ".")
     return send_from_directory(output_dir, filename)
+
+
+@api_v1.route("/models")
+def api_v1_models():
+    """API v1 list available LM Studio models."""
+    return _handle_models()
+
+
+@app.route("/api/models")
+@deprecated_route
+def api_models():
+    """Legacy models endpoint (deprecated)."""
+    return _handle_models()
+
+
+def _handle_models():
+    """Common handler for listing LM Studio models."""
+    lm_url = CONFIG.get("lm_studio_url", "http://localhost:1234")
+    lm_url = lm_url.rstrip("/")
+    if not lm_url.endswith("/v1"):
+        lm_url += "/v1"
+    try:
+        resp = requests.get(f"{lm_url}/models", timeout=5)
+        data = resp.json()
+        data["default_model"] = CONFIG.get("lm_studio_model", "")
+        return jsonify(data)
+    except Exception as e:
+        logger.error("Failed to list models", extra={'error': str(e)})
+        return jsonify({
+            "data": [],
+            "default_model": CONFIG.get("lm_studio_model", ""),
+            "error": str(e)
+        })
 
 
 @api_v1.route("/endpoints")

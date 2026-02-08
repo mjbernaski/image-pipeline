@@ -19,7 +19,7 @@ MODEL_ID = CONFIG.get("lm_studio_model", "gpt-oss-20b")
 logger = setup_logger("prompt_gen", level=CONFIG.get("logging_level", "INFO"))
 
 
-def generate_prompt(steering_concept=None, image_base64=None, return_details=False):
+def generate_prompt(steering_concept=None, image_base64=None, return_details=False, model=None, temperature=None):
     """
     Generate a creative image generation prompt using LLM.
 
@@ -35,11 +35,12 @@ def generate_prompt(steering_concept=None, image_base64=None, return_details=Fal
     Raises:
         RuntimeError: If LLM returns empty prompt
     """
+    use_model = model or MODEL_ID
     start_time = time.time()
     result = {
         "prompt": None,
         "elapsed": None,
-        "model": MODEL_ID,
+        "model": use_model,
         "url": LM_STUDIO_URL,
         "mode": "vision" if image_base64 else "text",
         "source": "llm",
@@ -75,7 +76,7 @@ def generate_prompt(steering_concept=None, image_base64=None, return_details=Fal
                 {"type": "image_url", "image_url": {"url": image_url}}
             ]}
         ]
-        logger.info(f"Requesting vision-based prompt", extra={'model': MODEL_ID})
+        logger.info(f"Requesting vision-based prompt", extra={'model': use_model})
     else:
         if steering_concept:
             user_msg = (
@@ -92,13 +93,13 @@ def generate_prompt(steering_concept=None, image_base64=None, return_details=Fal
             {"role": "system", "content": "You are a prompt engineer. Output ONLY the image generation prompt itself - no thinking, no reasoning, no preamble, no explanation. Start directly with the description."},
             {"role": "user", "content": user_msg}
         ]
-        logger.info(f"Requesting text-based prompt", extra={'model': MODEL_ID})
+        logger.info(f"Requesting text-based prompt", extra={'model': use_model})
 
     try:
         response = client.chat.completions.create(
-            model=MODEL_ID,
+            model=use_model,
             messages=messages,
-            temperature=0.7,
+            temperature=temperature if temperature is not None else 0.7,
             max_tokens=1500
         )
 

@@ -654,9 +654,22 @@
                             </div>
                         </div>
                     </div>
+                    <div class="form-group" id="strength-group" style="display:none">
+                        <label for="strength">Strength: <span id="strength-value">0.75</span></label>
+                        <input type="range" id="strength" min="0" max="1" step="0.05" value="0.75" oninput="document.getElementById('strength-value').textContent = this.value" style="width:100%; accent-color:#00d4ff;">
+                    </div>
+                    <div class="form-group" id="model-group" style="display:none">
+                        <label for="model-select">LLM Model</label>
+                        <select id="model-select" style="width:100%"></select>
+                    </div>
+                    <div class="form-group" id="temperature-group" style="display:none">
+                        <label for="temperature">Temperature: <span id="temperature-value">0.7</span></label>
+                        <input type="range" id="temperature" min="0" max="2" step="0.05" value="0.7" oninput="document.getElementById('temperature-value').textContent = this.value" style="width:100%; accent-color:#00d4ff;">
+                    </div>
+
                     <div class="form-group options">
                         <div class="checkbox-group">
-                            <input type="checkbox" id="random" onchange="updatePromptModeUI()">
+                            <input type="checkbox" id="random" checked onchange="updatePromptModeUI()">
                             <label for="random" style="margin:0">Random / LLM prompt</label>
                         </div>
                         <div class="checkbox-group">
@@ -771,6 +784,53 @@
                 dualNote.classList.remove('visible');
             }
         }
+
+        let modelsLoaded = false;
+        let defaultModel = '';
+
+        async function loadModels() {
+            if (modelsLoaded) return;
+            try {
+                const res = await fetch('/api/models');
+                const data = await res.json();
+                defaultModel = data.default_model || '';
+                const select = document.getElementById('model-select');
+                select.innerHTML = '';
+                if (data.data && data.data.length > 0) {
+                    data.data.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m.id;
+                        opt.textContent = m.id;
+                        if (m.id === defaultModel) opt.selected = true;
+                        select.appendChild(opt);
+                    });
+                } else {
+                    const opt = document.createElement('option');
+                    opt.value = defaultModel;
+                    opt.textContent = defaultModel || '(no models found)';
+                    select.appendChild(opt);
+                }
+                modelsLoaded = true;
+            } catch (e) {
+                console.error('Failed to load models:', e);
+            }
+        }
+
+        const origUpdatePromptModeUI = updatePromptModeUI;
+        updatePromptModeUI = function() {
+            origUpdatePromptModeUI();
+            const isRandom = document.getElementById('random').checked;
+            const modelGroup = document.getElementById('model-group');
+            const tempGroup = document.getElementById('temperature-group');
+            if (isRandom) {
+                modelGroup.style.display = 'block';
+                tempGroup.style.display = 'block';
+                loadModels();
+            } else {
+                modelGroup.style.display = 'none';
+                tempGroup.style.display = 'none';
+            }
+        };
 
         async function loadQueue() {
             try {
@@ -1010,6 +1070,7 @@
 
         loadEndpoints();
         loadQueue();
+        updatePromptModeUI();
         setInterval(loadEndpoints, 30000);
         setInterval(loadQueue, 2000);
 
@@ -1115,6 +1176,7 @@
                     <br><button type="button" class="clear-image" onclick="clearImage(event)">Remove</button>
                 `;
                 uploadArea.classList.add('has-image');
+                document.getElementById('strength-group').style.display = 'block';
             });
         }
 
@@ -1126,6 +1188,7 @@
                 <div class="image-upload-text">Click or drag an image here</div>
             `;
             uploadArea.classList.remove('has-image');
+            document.getElementById('strength-group').style.display = 'none';
         }
 
         function clearForm() {
@@ -1149,6 +1212,7 @@
                     <br><button type="button" class="clear-image" onclick="clearImage(event)">Remove</button>
                 `;
                 uploadArea.classList.add('has-image');
+                document.getElementById('strength-group').style.display = 'block';
 
                 showTab('generate');
                 document.getElementById('image-upload').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1173,8 +1237,10 @@
             const size = '1mp';
             const steps = 25;
             const seed = null;
-            const strength = 0.75;
+            const strength = selectedImageFile ? parseFloat(document.getElementById('strength').value) : 0.75;
             const guidance = document.getElementById('guidance').value;
+            const model = random ? document.getElementById('model-select').value : '';
+            const temperature = random ? parseFloat(document.getElementById('temperature').value) : undefined;
 
             let prompt, prompt2;
             if (promptMode === 'different' && !random) {
@@ -1211,6 +1277,8 @@
                     if (seed !== null) formData.append('seed', seed);
                     formData.append('strength', strength);
                     if (guidance) formData.append('guidance_scale', guidance);
+                    if (model) formData.append('model', model);
+                    if (temperature !== undefined) formData.append('temperature', temperature);
                     formData.append('image', selectedImageFile);
                     res = await fetch('/api/generate', {
                         method: 'POST',
@@ -1220,7 +1288,7 @@
                     res = await fetch('/api/generate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt, prompt2, prompt_mode: promptMode, random, count, orientation, size, steps, seed, guidance_scale: guidance || undefined })
+                        body: JSON.stringify({ prompt, prompt2, prompt_mode: promptMode, random, count, orientation, size, steps, seed, guidance_scale: guidance || undefined, model: model || undefined, temperature })
                     });
                 }
                 const data = await res.json();
@@ -1320,7 +1388,7 @@
                             <div class="image-meta">
                                 <span class="endpoint">${img.endpoint.name}</span><br>
                                 ${hasDifferentPrompts ? `<div style="color:#ccc;margin:4px 0;font-size:0.75rem">${escapeHtml(promptUsed.slice(0, 80))}${promptUsed.length > 80 ? '...' : ''} <button class="copy-btn" data-prompt="${escapeHtml(promptUsed)}" onclick="copyPrompt(this.dataset.prompt, this)" title="Copy to clipboard"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>` : ''}
-                                Seed: ${img.stats?.seed || 'N/A'}${run.guidance_scale != null ? ` | G: ${run.guidance_scale}` : ''} | ${img.duration?.toFixed(1)}s
+                                Seed: ${img.stats?.seed || 'N/A'}${run.guidance_scale != null ? ` | G: ${run.guidance_scale}` : ''}${run.steps ? ` | Steps: ${run.steps}` : ''}${run.strength != null && run.strength !== 0.75 ? ` | Str: ${run.strength}` : ''} | ${img.duration?.toFixed(1)}s
                                 <button class="use-as-input-btn" onclick="useAsInput('/images/${filename}', event)">Use as input</button>
                             </div>
                         </div>`;

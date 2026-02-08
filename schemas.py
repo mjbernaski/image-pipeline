@@ -16,6 +16,7 @@ LIMITS = {
     'steps': {'min': 1, 'max': 150},
     'strength': {'min': 0.0, 'max': 1.0},
     'guidance_scale': {'min': 0.0, 'max': 30.0},
+    'temperature': {'min': 0.0, 'max': 2.0},
 }
 
 
@@ -218,6 +219,20 @@ def validate_seed(value: Any) -> Tuple[bool, Optional[int], Optional[str]]:
         return False, None, "seed must be an integer"
 
 
+def validate_temperature(value: Any) -> Tuple[bool, Optional[float], Optional[str]]:
+    if value is None or value == "":
+        return True, None, None
+    try:
+        temp = float(value)
+        if temp < LIMITS['temperature']['min']:
+            return False, None, f"temperature must be at least {LIMITS['temperature']['min']}"
+        if temp > LIMITS['temperature']['max']:
+            return False, None, f"temperature must be at most {LIMITS['temperature']['max']}"
+        return True, temp, None
+    except (TypeError, ValueError):
+        return False, None, "temperature must be a number"
+
+
 def validate_generation_request(data: Dict[str, Any]) -> ValidationResult:
     """
     Validate a complete generation request.
@@ -278,6 +293,12 @@ def validate_generation_request(data: Dict[str, Any]) -> ValidationResult:
     else:
         result.add_error("seed", error)
 
+    valid, temperature, error = validate_temperature(data.get("temperature"))
+    if valid:
+        result.data["temperature"] = temperature
+    else:
+        result.add_error("temperature", error)
+
     result.data["prompt"] = data.get("prompt", "").strip() if isinstance(data.get("prompt"), str) else ""
     result.data["prompt2"] = data.get("prompt2", "").strip() if isinstance(data.get("prompt2"), str) else ""
 
@@ -290,5 +311,10 @@ def validate_generation_request(data: Dict[str, Any]) -> ValidationResult:
         result.add_error("prompt", "Prompt is required when not using random mode")
 
     result.data["image_base64"] = data.get("image") or data.get("image_base64")
+
+    model = data.get("model", "")
+    if isinstance(model, str):
+        model = model.strip()
+    result.data["model"] = model or None
 
     return result
