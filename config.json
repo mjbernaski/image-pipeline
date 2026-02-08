@@ -1,6 +1,6 @@
 {
     "version": "1.0",
-    "output_directory": "/Volumes/T9/dual-image-generations",
+    "output_directory": "/Volumes/Big Boy/dual-image-generations",
     "logging_level": "INFO",
     "database_path": "jobs.db",
 

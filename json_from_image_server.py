@@ -185,6 +185,7 @@ def analyze():
             },
         ],
         "temperature": 0.3,
+        "max_tokens": 4096,
     }
 
     logger.info(f"Sending to LLM", extra={
@@ -214,7 +215,13 @@ def analyze():
 
         resp.raise_for_status()
         result = resp.json()
-        content = result["choices"][0]["message"]["content"].strip()
+        msg = result["choices"][0]["message"]
+        content = (msg.get("content") or "").strip()
+        if not content:
+            content = (msg.get("reasoning_content") or msg.get("reasoning") or "").strip()
+        content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
+        content = re.sub(r'<reasoning>.*?</reasoning>', '', content, flags=re.DOTALL)
+        content = content.strip()
         content = re.sub(r"^```(?:json)?\s*", "", content)
         content = re.sub(r"\s*```\s*$", "", content)
 

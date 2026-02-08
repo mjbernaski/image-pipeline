@@ -720,7 +720,8 @@ async function aiGenerate(sceneHint) {
   if (!res.ok) throw new Error(`Ollama returned ${res.status}`);
 
   const data = await res.json();
-  let content = data.choices[0].message.content.trim();
+  const msg = data.choices[0].message;
+  let content = (msg.content || msg.reasoning_content || msg.reasoning || '').trim();
   content = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
   try {
     return JSON.parse(content);
@@ -809,7 +810,8 @@ async function aiSummarize(scenes) {
 
   if (!res.ok) throw new Error(`Ollama returned ${res.status}`);
   const data = await res.json();
-  return data.choices[0].message.content.trim();
+  const msg = data.choices[0].message;
+  return (msg.content || msg.reasoning_content || msg.reasoning || '').trim();
 }
 
 function createTagInput(container) {

@@ -100,7 +100,7 @@ def generate_prompt(steering_concept=None, image_base64=None, return_details=Fal
             model=use_model,
             messages=messages,
             temperature=temperature if temperature is not None else 0.7,
-            max_tokens=1500
+            max_tokens=4096
         )
 
         msg = response.choices[0].message
