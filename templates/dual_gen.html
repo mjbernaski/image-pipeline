@@ -1310,14 +1310,24 @@
             }
         }
 
+        let displayedResultCount = 0;
+
         function pollStatus() {
             if (pollInterval) clearInterval(pollInterval);
+            displayedResultCount = 0;
             pollInterval = setInterval(async () => {
                 try {
                     const res = await fetch(`/api/status/${currentJobId}`);
                     const job = await res.json();
 
                     loadQueue();
+
+                    if (job.results && job.results.length > displayedResultCount) {
+                        displayResults(job.results);
+                        const newCount = job.results.length - displayedResultCount;
+                        for (let i = 0; i < newCount; i++) playCompletionSound();
+                        displayedResultCount = job.results.length;
+                    }
 
                     if (job.status === 'running') {
                         const llmState = job.llm_status?.state;
@@ -1329,7 +1339,20 @@
                                 `Run ${job.current_run}/${job.count}: Generating images...`;
                         }
 
-                        if (job.current_prompt) {
+                        if (job.endpoint_prompts) {
+                            const prompts = Object.entries(job.endpoint_prompts);
+                            const allSame = prompts.every(([, p]) => p === prompts[0][1]);
+                            let promptHtml = '';
+                            if (allSame) {
+                                promptHtml = prompts[0][1];
+                            } else {
+                                promptHtml = prompts.map(([name, p]) =>
+                                    `<strong>${escapeHtml(name)}:</strong> ${escapeHtml(p)}`
+                                ).join('<br><br>');
+                            }
+                            document.getElementById('current-prompt-box').style.display = 'block';
+                            document.getElementById('current-prompt-text').innerHTML = promptHtml;
+                        } else if (job.current_prompt) {
                             document.getElementById('current-prompt-box').style.display = 'block';
                             document.getElementById('current-prompt-text').textContent = job.current_prompt;
                         }
@@ -1340,11 +1363,9 @@
                     if (job.status === 'complete') {
                         clearInterval(pollInterval);
                         pollInterval = null;
-                        displayResults(job.results);
                         resetUI();
                         document.getElementById('current-prompt-box').style.display = 'none';
                         renderEndpoints();
-                        playCompletionSound();
                         loadQueue();
                         startNextJobPolling();
                     }
@@ -1383,13 +1404,14 @@
                     if (img.success) {
                         const filename = img.local_path.split('/').pop();
                         const promptUsed = img.prompt_used || run.prompt;
+                        const promptId = `prompt-${Date.now()}-${Math.random().toString(36).slice(2)}`;
                         html += `<div class="image-card">
                             <img src="/images/${filename}" onclick="openModal(this.src)" loading="lazy">
                             <div class="image-meta">
-                                <span class="endpoint">${img.endpoint.name}</span><br>
-                                ${hasDifferentPrompts ? `<div style="color:#ccc;margin:4px 0;font-size:0.75rem">${escapeHtml(promptUsed.slice(0, 80))}${promptUsed.length > 80 ? '...' : ''} <button class="copy-btn" data-prompt="${escapeHtml(promptUsed)}" onclick="copyPrompt(this.dataset.prompt, this)" title="Copy to clipboard"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button></div>` : ''}
-                                Seed: ${img.stats?.seed || 'N/A'}${run.guidance_scale != null ? ` | G: ${run.guidance_scale}` : ''}${run.steps ? ` | Steps: ${run.steps}` : ''}${run.strength != null && run.strength !== 0.75 ? ` | Str: ${run.strength}` : ''} | ${img.duration?.toFixed(1)}s
+                                <span class="endpoint">${img.endpoint.name}</span>
+                                | Seed: ${img.stats?.seed || 'N/A'}${run.guidance_scale != null ? ` | G: ${run.guidance_scale}` : ''}${run.steps ? ` | Steps: ${run.steps}` : ''}${run.strength != null && run.strength !== 0.75 ? ` | Str: ${run.strength}` : ''} | ${img.duration?.toFixed(1)}s
                                 <button class="use-as-input-btn" onclick="useAsInput('/images/${filename}', event)">Use as input</button>
+                                ${hasDifferentPrompts ? `<div class="result-prompt" style="margin-top:8px;margin-bottom:0;font-size:0.8rem;color:#ccc;word-break:break-word"><strong>Prompt:</strong> <button class="copy-btn" onclick="copyPrompt(document.getElementById('${promptId}').textContent, this)" title="Copy to clipboard"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button><span id="${promptId}">${escapeHtml(promptUsed)}</span></div>` : ''}
                             </div>
                         </div>`;
                     } else {

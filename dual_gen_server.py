@@ -150,8 +150,14 @@ def run_generation(job):
                 llm_status = {"state": "generating", "start_time": time.time(), "elapsed": None, "model": None, "source": None}
                 job_queue.update(job_id, llm_status=llm_status)
 
-                llm_result = prompt_gen.generate_prompt(steering_concept=steering_concept, image_base64=image_base64, return_details=True, model=model, temperature=temperature)
-                current_prompt = llm_result["prompt"]
+                if count > 1:
+                    for ep in ENDPOINTS:
+                        llm_result = prompt_gen.generate_prompt(steering_concept=steering_concept, image_base64=image_base64, return_details=True, model=model, temperature=temperature)
+                        endpoint_prompts[ep["name"]] = llm_result["prompt"]
+                else:
+                    llm_result = prompt_gen.generate_prompt(steering_concept=steering_concept, image_base64=image_base64, return_details=True, model=model, temperature=temperature)
+                    for ep in ENDPOINTS:
+                        endpoint_prompts[ep["name"]] = llm_result["prompt"]
 
                 llm_status = {
                     "state": "done" if llm_result["source"] == "llm" else "fallback",
@@ -164,9 +170,8 @@ def run_generation(job):
                 }
                 job_queue.update(job_id, llm_status=llm_status)
             else:
-                current_prompt = prompt
-            for ep in ENDPOINTS:
-                endpoint_prompts[ep["name"]] = current_prompt
+                for ep in ENDPOINTS:
+                    endpoint_prompts[ep["name"]] = prompt
 
         job_queue.update(
             job_id,
