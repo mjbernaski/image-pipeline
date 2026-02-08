@@ -5,8 +5,8 @@
     "database_path": "jobs.db",
 
     "lm_studio_url": "http://localhost:11434",
-    "lm_studio_model": "zai-org/glm-4.6v-flash@4bit",
-    "vision_model": "qwen/qwen3-vl-30b",
+    "lm_studio_model": "qwen3-vl:30b",
+    "vision_model": "qwen3-vl:30b",
 
     "dual_gen_host": "0.0.0.0",
     "dual_gen_port": 5050,
