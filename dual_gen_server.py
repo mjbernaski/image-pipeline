@@ -623,7 +623,22 @@ def _handle_endpoints():
             logger.warning(f"Unexpected error checking endpoint {ep['name']}", extra={'error': str(e)})
             status["status"] = "unknown"
         results.append(status)
-    return jsonify(results)
+
+    lm_url = CONFIG.get("llm_url", "http://localhost:11434")
+    lm_model = CONFIG.get("llm_model", "")
+    llm_info = {"url": lm_url, "model": lm_model, "status": "unknown"}
+    try:
+        normalized = lm_url.rstrip("/")
+        if not normalized.endswith("/v1"):
+            normalized += "/v1"
+        resp = requests.get(f"{normalized}/models", timeout=3)
+        llm_info["status"] = "connected" if resp.status_code == 200 else "error"
+    except requests.exceptions.ConnectionError:
+        llm_info["status"] = "disconnected"
+    except:
+        llm_info["status"] = "error"
+
+    return jsonify({"endpoints": results, "llm": llm_info})
 
 
 @api_v1.route("/gallery")

@@ -22,6 +22,7 @@ CONFIG = load_config()
 
 LLM_URL = normalize_llm_url(CONFIG.get("llm_url", "http://localhost:11434"))
 DEFAULT_MODEL = CONFIG.get("vision_model", "")
+NUM_CTX = CONFIG.get("llm_num_ctx", 2048)
 GENERATOR_ENDPOINT = f"http://127.0.0.1:{CONFIG.get('dual_gen_port', 5050)}"
 GENERATOR_PATH = "/api/generate"
 
@@ -179,13 +180,15 @@ def analyze():
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "Analyze this image and describe it as a detailed scene JSON."},
+                    {"type": "text", "text": "Analyze this image and describe it as a detailed scene JSON. /no_think"},
                     {"type": "image_url", "image_url": {"url": data_url}},
                 ],
             },
         ],
         "temperature": 0.3,
         "max_tokens": 4096,
+        "think": False,
+        "options": {"num_ctx": NUM_CTX},
     }
 
     logger.info(f"Sending to LLM", extra={

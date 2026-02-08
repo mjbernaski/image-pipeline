@@ -4,9 +4,10 @@
     "logging_level": "INFO",
     "database_path": "jobs.db",
 
-    "llm_url": "http://localhost:11434",
-    "llm_model": "qwen3-vl:30b",
-    "vision_model": "qwen3-vl:30b",
+    "llm_url": "http://192.168.6.40:11435",
+    "llm_model": "qwen3-vl:8b",
+    "vision_model": "qwen3-vl:8b",
+    "llm_num_ctx": 32000,
 
     "dual_gen_host": "0.0.0.0",
     "dual_gen_port": 5050,

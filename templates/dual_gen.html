@@ -737,6 +737,7 @@
         let queuePollInterval = null;
         let selectedImageFile = null;
         let endpointsData = [];
+        let llmInfo = null;
         let promptMode = 'same';
         let queueData = { pending: [], running: [], completed: [] };
 
@@ -968,7 +969,13 @@
         async function loadEndpoints() {
             try {
                 const res = await fetch('/api/endpoints');
-                endpointsData = await res.json();
+                const data = await res.json();
+                if (data.endpoints) {
+                    endpointsData = data.endpoints;
+                    llmInfo = data.llm;
+                } else {
+                    endpointsData = data;
+                }
                 renderEndpoints();
             } catch (e) {
                 console.error('Failed to load endpoints:', e);
@@ -982,25 +989,40 @@
             const now = Date.now() / 1000;
 
             let llmHtml = '';
-            if (llmStatus) {
-                let dotClass = llmStatus.state || 'idle';
-                let statusText = llmStatus.state || 'idle';
+            {
+                let dotClass = 'idle';
+                let statusText = 'idle';
                 let timeText = '';
-                let detailText = llmStatus.model || 'Ollama';
+                let detailText = '';
+                let urlText = '';
 
-                if (llmStatus.state === 'generating' && llmStatus.start_time) {
-                    const elapsed = now - llmStatus.start_time;
-                    timeText = formatTime(elapsed);
-                } else if (llmStatus.elapsed !== null && llmStatus.elapsed !== undefined) {
-                    timeText = formatTime(llmStatus.elapsed);
+                if (llmStatus && llmStatus.state && llmStatus.state !== 'idle') {
+                    dotClass = llmStatus.state;
+                    statusText = llmStatus.state;
+                    detailText = llmStatus.model || (llmInfo && llmInfo.model) || 'Ollama';
+
+                    if (llmStatus.state === 'generating' && llmStatus.start_time) {
+                        const elapsed = now - llmStatus.start_time;
+                        timeText = formatTime(elapsed);
+                    } else if (llmStatus.elapsed !== null && llmStatus.elapsed !== undefined) {
+                        timeText = formatTime(llmStatus.elapsed);
+                    }
+
+                    if (llmStatus.mode) {
+                        detailText += ` (${llmStatus.mode})`;
+                    }
+                    if (llmStatus.source === 'fallback') {
+                        statusText = 'fallback';
+                        dotClass = 'error';
+                    }
+                } else if (llmInfo) {
+                    dotClass = llmInfo.status === 'connected' ? 'online' : (llmInfo.status === 'disconnected' ? 'offline' : 'error');
+                    statusText = llmInfo.status;
+                    detailText = llmInfo.model || 'Ollama';
                 }
 
-                if (llmStatus.mode) {
-                    detailText += ` (${llmStatus.mode})`;
-                }
-                if (llmStatus.source === 'fallback') {
-                    statusText = 'fallback';
-                    dotClass = 'error';
+                if (llmInfo && llmInfo.url) {
+                    urlText = llmInfo.url.replace(/^https?:\/\//, '');
                 }
 
                 llmHtml = `
@@ -1008,7 +1030,7 @@
                         <div class="endpoint-dot ${dotClass}"></div>
                         <div class="endpoint-info">
                             <div class="endpoint-name">LLM Prompt</div>
-                            <div class="endpoint-detail">${detailText}</div>
+                            <div class="endpoint-detail">${detailText}${urlText ? ' @ ' + urlText : ''}</div>
                         </div>
                         <div class="endpoint-status-text">
                             ${statusText}${timeText ? ' <strong>' + timeText + '</strong>' : ''}

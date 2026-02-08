@@ -627,6 +627,7 @@ let subjectCount = 0;
 let endpointUrl = 'http://localhost:5050';
 let generatePath = '/api/generate';
 let lmModel = 'openai/gpt-oss-20b';
+let numCtx = 2048;
 
 fetch('config.json')
   .then(r => r.json())
@@ -634,6 +635,7 @@ fetch('config.json')
     if (cfg.endpoint) endpointUrl = cfg.endpoint;
     if (cfg.generatePath) generatePath = cfg.generatePath;
     if (cfg.lmModel) lmModel = cfg.lmModel;
+    if (cfg.numCtx) numCtx = cfg.numCtx;
     document.getElementById('endpoint-display').textContent = endpointUrl;
   })
   .catch(() => {
@@ -711,9 +713,11 @@ async function aiGenerate(sceneHint) {
       model: getSelectedModel(),
       messages: [
         { role: 'system', content: AI_SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt }
+        { role: 'user', content: userPrompt + ' /no_think' }
       ],
-      temperature: parseFloat(document.getElementById('ai-temp').value) || 2
+      temperature: parseFloat(document.getElementById('ai-temp').value) || 2,
+      think: false,
+      options: { num_ctx: numCtx }
     })
   });
 
@@ -802,9 +806,11 @@ async function aiSummarize(scenes) {
       model: getSelectedModel(),
       messages: [
         { role: 'system', content: 'You summarize the variation across a batch of photography scene descriptions. Be concise. No more than 300 words. Describe the range of subjects, styles, moods, lighting, and camera choices. Highlight what differs and what stays consistent across the batch.' },
-        { role: 'user', content: `Here are ${scenes.length} generated scenes. Summarize the variation:\n\n${scenesText}` }
+        { role: 'user', content: `Here are ${scenes.length} generated scenes. Summarize the variation:\n\n${scenesText} /no_think` }
       ],
-      temperature: 0.3
+      temperature: 0.3,
+      think: false,
+      options: { num_ctx: numCtx }
     })
   });
 

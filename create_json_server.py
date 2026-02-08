@@ -86,7 +86,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         client_config = {
             "endpoint": UPSTREAM,
             "generatePath": "/api/generate",
-            "lmModel": CONFIG.get("llm_model", "")
+            "lmModel": CONFIG.get("llm_model", ""),
+            "numCtx": CONFIG.get("llm_num_ctx", 2048)
         }
         data = json.dumps(client_config).encode('utf-8')
         self.send_response(200)

@@ -81,8 +81,8 @@ check_health() {
     return 1
 }
 
-echo "Preloading Ollama model (qwen3-vl:30b)..."
-ollama run qwen3-vl:30b "" > /dev/null 2>&1 &
+echo "Preloading Ollama model (qwen3-vl:latest)..."
+ollama run qwen3-vl:latest "" > /dev/null 2>&1 &
 sleep 2
 echo "  [OK] Model preload initiated"
 echo ""

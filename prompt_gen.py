@@ -15,6 +15,7 @@ CONFIG = load_config()
 
 LLM_URL = normalize_llm_url(CONFIG.get("llm_url", "http://localhost:1234/v1"))
 MODEL_ID = CONFIG.get("llm_model", "gpt-oss-20b")
+NUM_CTX = CONFIG.get("llm_num_ctx", 2048)
 
 logger = setup_logger("prompt_gen", level=CONFIG.get("logging_level", "INFO"))
 
@@ -55,13 +56,13 @@ def generate_prompt(steering_concept=None, image_base64=None, return_details=Fal
                 f"Look at this image and create a LONG, detailed image generation prompt (at least 80-120 words) to transform it "
                 f"based on this concept: '{steering_concept}'. "
                 "Describe the key elements you see, environment, mood, lighting, colors, textures, artistic style, and quality tags. "
-                "Return ONLY the prompt string."
+                "Return ONLY the prompt string. /no_think"
             )
         else:
             user_msg = (
                 "Look at this image and create a LONG, detailed image generation prompt (at least 80-120 words) that describes it "
                 "with artistic enhancements. Include subject details, environment, mood, lighting, colors, textures, artistic style, and quality tags. "
-                "Return ONLY the prompt string."
+                "Return ONLY the prompt string. /no_think"
             )
 
         if not image_base64.startswith("data:"):
@@ -81,12 +82,12 @@ def generate_prompt(steering_concept=None, image_base64=None, return_details=Fal
         if steering_concept:
             user_msg = (
                 f"Create a LONG, detailed image prompt (at least 80-120 words) based on the concept: '{steering_concept}'. "
-                "Include subject details, environment, mood, lighting, colors, textures, artistic style, and quality tags."
+                "Include subject details, environment, mood, lighting, colors, textures, artistic style, and quality tags. /no_think"
             )
         else:
             user_msg = (
                 "Generate a LONG, detailed, creative image prompt (at least 80-120 words). "
-                "Choose a unique subject and describe it with environment, mood, lighting, colors, textures, artistic style, and quality tags."
+                "Choose a unique subject and describe it with environment, mood, lighting, colors, textures, artistic style, and quality tags. /no_think"
             )
 
         messages = [
@@ -100,7 +101,8 @@ def generate_prompt(steering_concept=None, image_base64=None, return_details=Fal
             model=use_model,
             messages=messages,
             temperature=temperature if temperature is not None else 0.7,
-            max_tokens=4096
+            max_tokens=4096,
+            extra_body={"think": False, "options": {"num_ctx": NUM_CTX}}
         )
 
         msg = response.choices[0].message
