@@ -14,13 +14,13 @@ import requests
 from PIL import Image
 
 from pipeline_common import (
-    load_config, normalize_lm_studio_url, setup_logger,
+    load_config, normalize_llm_url, setup_logger,
     create_error_response, create_health_response, generate_correlation_id
 )
 
 CONFIG = load_config()
 
-LM_STUDIO_URL = normalize_lm_studio_url(CONFIG.get("lm_studio_url", "http://localhost:11434"))
+LLM_URL = normalize_llm_url(CONFIG.get("llm_url", "http://localhost:11434"))
 DEFAULT_MODEL = CONFIG.get("vision_model", "")
 GENERATOR_ENDPOINT = f"http://127.0.0.1:{CONFIG.get('dual_gen_port', 5050)}"
 GENERATOR_PATH = "/api/generate"
@@ -87,7 +87,7 @@ def index():
 def health():
     """Health check endpoint."""
     try:
-        resp = requests.get(f"{LM_STUDIO_URL}/models", timeout=3)
+        resp = requests.get(f"{LLM_URL}/models", timeout=3)
         lm_status = "connected" if resp.status_code == 200 else "error"
     except:
         lm_status = "disconnected"
@@ -95,14 +95,14 @@ def health():
     return jsonify(create_health_response(
         service="json_from_image",
         status="healthy" if lm_status == "connected" else "degraded",
-        extra={"lm_studio": lm_status, "model": DEFAULT_MODEL}
+        extra={"llm": lm_status, "model": DEFAULT_MODEL}
     ))
 
 
 @app.route("/api/models")
 def list_models():
     try:
-        resp = requests.get(f"{LM_STUDIO_URL}/models", timeout=5)
+        resp = requests.get(f"{LLM_URL}/models", timeout=5)
         data = resp.json()
         data["default_model"] = DEFAULT_MODEL
         return jsonify(data)
@@ -112,7 +112,7 @@ def list_models():
             'error': str(e),
         })
         return jsonify(create_error_response(
-            "LM_STUDIO_ERROR",
+            "LLM_ERROR",
             str(e),
             details={"default_model": DEFAULT_MODEL},
             correlation_id=g.correlation_id
@@ -187,7 +187,7 @@ def analyze():
         "temperature": 0.3,
     }
 
-    logger.info(f"Sending to LM Studio", extra={
+    logger.info(f"Sending to LLM", extra={
         'correlation_id': correlation_id,
         'model': model,
         'has_steering': bool(steering),
@@ -195,19 +195,19 @@ def analyze():
 
     try:
         resp = requests.post(
-            f"{LM_STUDIO_URL}/chat/completions",
+            f"{LLM_URL}/chat/completions",
             json=payload,
             timeout=120,
         )
         if resp.status_code != 200:
-            logger.error(f"LM Studio error", extra={
+            logger.error(f"LLM error", extra={
                 'correlation_id': correlation_id,
                 'status_code': resp.status_code,
                 'mime': mime,
             })
             return jsonify(create_error_response(
-                "LM_STUDIO_ERROR",
-                f"LM Studio returned {resp.status_code}",
+                "LLM_ERROR",
+                f"LLM returned {resp.status_code}",
                 details={"response": resp.text[:500]},
                 correlation_id=correlation_id
             )), resp.status_code
@@ -230,7 +230,7 @@ def analyze():
                     'raw_content': content[:200],
                 })
                 return jsonify(create_error_response(
-                    "LM_STUDIO_ERROR",
+                    "LLM_ERROR",
                     "Failed to parse model response",
                     details={"raw": content[:500]},
                     correlation_id=correlation_id
@@ -243,21 +243,21 @@ def analyze():
         return jsonify(scene_json)
 
     except requests.exceptions.Timeout:
-        logger.error(f"LM Studio timeout", extra={'correlation_id': correlation_id})
+        logger.error(f"LLM timeout", extra={'correlation_id': correlation_id})
         return jsonify(create_error_response(
             "TIMEOUT",
-            "LM Studio request timed out",
+            "LLM request timed out",
             correlation_id=correlation_id
         )), 504
 
     except requests.exceptions.ConnectionError:
-        logger.error(f"Cannot connect to LM Studio", extra={
+        logger.error(f"Cannot connect to LLM", extra={
             'correlation_id': correlation_id,
-            'url': LM_STUDIO_URL,
+            'url': LLM_URL,
         })
         return jsonify(create_error_response(
             "SERVICE_UNAVAILABLE",
-            f"Cannot connect to LM Studio at {LM_STUDIO_URL}",
+            f"Cannot connect to LLM at {LLM_URL}",
             correlation_id=correlation_id
         )), 502
 
@@ -311,7 +311,7 @@ def main():
     logger.info(f"Starting JSON from Image server", extra={
         'host': host,
         'port': port,
-        'lm_studio_url': LM_STUDIO_URL,
+        'llm_url': LLM_URL,
         'model': DEFAULT_MODEL,
     })
 

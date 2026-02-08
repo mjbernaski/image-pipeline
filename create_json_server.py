@@ -15,7 +15,7 @@ from pipeline_common import load_config, setup_logger, create_health_response
 CONFIG = load_config()
 
 UPSTREAM = f"http://127.0.0.1:{CONFIG.get('dual_gen_port', 5050)}"
-LM_UPSTREAM = CONFIG.get("lm_studio_url", "http://localhost:11434")
+LLM_UPSTREAM = CONFIG.get("llm_url", "http://localhost:11434")
 PORT = CONFIG.get("create_json_port", 3030)
 BIND = CONFIG.get("create_json_host", "0.0.0.0")
 
@@ -86,7 +86,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         client_config = {
             "endpoint": UPSTREAM,
             "generatePath": "/api/generate",
-            "lmModel": CONFIG.get("lm_studio_model", "")
+            "lmModel": CONFIG.get("llm_model", "")
         }
         data = json.dumps(client_config).encode('utf-8')
         self.send_response(200)
@@ -97,11 +97,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def _proxy_lm(self):
         path = self.path[3:]
-        url = LM_UPSTREAM + path
+        url = LLM_UPSTREAM + path
         length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(length) if length else None
 
-        logger.debug(f"Proxying to LM Studio", extra={'path': path, 'method': self.command})
+        logger.debug(f"Proxying to LLM", extra={'path': path, 'method': self.command})
 
         req = urllib.request.Request(
             url,
@@ -117,14 +117,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(data)
         except urllib.error.HTTPError as e:
-            logger.error(f"LM Studio proxy error", extra={'status_code': e.code, 'path': path})
+            logger.error(f"LLM proxy error", extra={'status_code': e.code, 'path': path})
             self.send_response(e.code)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
             self.wfile.write(e.read())
         except Exception as e:
-            logger.error(f"LM Studio proxy failed", extra={'error': str(e), 'path': path})
-            self.send_error(502, 'Cannot reach LM Studio')
+            logger.error(f"LLM proxy failed", extra={'error': str(e), 'path': path})
+            self.send_error(502, 'Cannot reach LLM')
 
     def _proxy(self):
         url = UPSTREAM + self.path
@@ -169,7 +169,7 @@ def main():
     logger.info(f"Starting Create JSON server", extra={
         'port': PORT,
         'upstream': UPSTREAM,
-        'lm_upstream': LM_UPSTREAM,
+        'lm_upstream': LLM_UPSTREAM,
         'local_ip': local_ip,
     })
 

@@ -717,7 +717,7 @@ async function aiGenerate(sceneHint) {
     })
   });
 
-  if (!res.ok) throw new Error(`LM Studio returned ${res.status}`);
+  if (!res.ok) throw new Error(`Ollama returned ${res.status}`);
 
   const data = await res.json();
   let content = data.choices[0].message.content.trim();
@@ -807,7 +807,7 @@ async function aiSummarize(scenes) {
     })
   });
 
-  if (!res.ok) throw new Error(`LM Studio returned ${res.status}`);
+  if (!res.ok) throw new Error(`Ollama returned ${res.status}`);
   const data = await res.json();
   return data.choices[0].message.content.trim();
 }

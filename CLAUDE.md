@@ -24,8 +24,8 @@ Multi-service image generation orchestration system with LLM-powered prompt gene
         ┌────────────┼────────────┐
         │            │            │
    ┌────▼────┐  ┌────▼────┐  ┌────▼────┐
-   │ LM      │  │Endpoint │  │Endpoint │
-   │ Studio  │  │   1     │  │   2     │
+   │ Ollama  │  │Endpoint │  │Endpoint │
+   │ (LLM)   │  │   1     │  │   2     │
    └─────────┘  └─────────┘  └─────────┘
 ```
 
@@ -77,7 +77,7 @@ curl http://localhost:3030/health
 
 - `POST /api/analyze` - Analyze image → JSON
 - `POST /api/send` - Send to generator
-- `GET /api/models` - List LM Studio models
+- `GET /api/models` - List LLM models
 - `GET /health` - Service health
 
 ### Create JSON (Port 3030)
@@ -85,7 +85,7 @@ curl http://localhost:3030/health
 - `GET /` - Manual JSON editor UI
 - `GET /health` - Service health
 - Proxies `/api/*` to Dual Gen
-- Proxies `/lm/*` to LM Studio
+- Proxies `/lm/*` to Ollama
 
 ## Configuration
 
@@ -98,8 +98,8 @@ All settings in `config.json`:
     "logging_level": "INFO",
     "database_path": "jobs.db",
 
-    "lm_studio_url": "http://localhost:11434",
-    "lm_studio_model": "model-name",
+    "llm_url": "http://localhost:11434",
+    "llm_model": "model-name",
     "vision_model": "vision-model-name",
 
     "dual_gen_port": 5050,
@@ -124,11 +124,11 @@ Edit `config.json`:
 ]
 ```
 
-### Changing LM Studio model
+### Changing LLM model
 
 Edit `config.json`:
 ```json
-"lm_studio_model": "new-model-name"
+"llm_model": "new-model-name"
 ```
 
 ### Adjusting validation limits
@@ -170,7 +170,7 @@ Error codes:
 - `INVALID_IMAGE_FORMAT` - Unsupported format
 - `JOB_NOT_FOUND` - Job doesn't exist
 - `SERVICE_UNAVAILABLE` - Upstream down
-- `LM_STUDIO_ERROR` - LLM request failed
+- `LLM_ERROR` - LLM request failed
 - `TIMEOUT` - Request timed out
 - `INTERNAL_ERROR` - Unexpected error
 

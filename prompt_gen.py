@@ -1,7 +1,7 @@
 """
 LLM-based prompt generation for image generation.
 
-Uses LM Studio (or compatible API) to generate creative prompts.
+Uses Ollama (or compatible API) to generate creative prompts.
 """
 
 import re
@@ -9,12 +9,12 @@ import time
 
 from openai import OpenAI
 
-from pipeline_common import load_config, normalize_lm_studio_url, setup_logger
+from pipeline_common import load_config, normalize_llm_url, setup_logger
 
 CONFIG = load_config()
 
-LM_STUDIO_URL = normalize_lm_studio_url(CONFIG.get("lm_studio_url", "http://localhost:1234/v1"))
-MODEL_ID = CONFIG.get("lm_studio_model", "gpt-oss-20b")
+LLM_URL = normalize_llm_url(CONFIG.get("llm_url", "http://localhost:1234/v1"))
+MODEL_ID = CONFIG.get("llm_model", "gpt-oss-20b")
 
 logger = setup_logger("prompt_gen", level=CONFIG.get("logging_level", "INFO"))
 
@@ -41,13 +41,13 @@ def generate_prompt(steering_concept=None, image_base64=None, return_details=Fal
         "prompt": None,
         "elapsed": None,
         "model": use_model,
-        "url": LM_STUDIO_URL,
+        "url": LLM_URL,
         "mode": "vision" if image_base64 else "text",
         "source": "llm",
         "error": None
     }
 
-    client = OpenAI(base_url=LM_STUDIO_URL, api_key="lm-studio", timeout=450.0)
+    client = OpenAI(base_url=LLM_URL, api_key="ollama", timeout=450.0)
 
     if image_base64:
         if steering_concept:

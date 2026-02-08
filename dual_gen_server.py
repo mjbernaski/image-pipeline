@@ -559,7 +559,7 @@ def serve_image(filename):
 
 @api_v1.route("/models")
 def api_v1_models():
-    """API v1 list available LM Studio models."""
+    """API v1 list available Ollama models."""
     return _handle_models()
 
 
@@ -571,21 +571,21 @@ def api_models():
 
 
 def _handle_models():
-    """Common handler for listing LM Studio models."""
-    lm_url = CONFIG.get("lm_studio_url", "http://localhost:1234")
+    """Common handler for listing Ollama models."""
+    lm_url = CONFIG.get("llm_url", "http://localhost:1234")
     lm_url = lm_url.rstrip("/")
     if not lm_url.endswith("/v1"):
         lm_url += "/v1"
     try:
         resp = requests.get(f"{lm_url}/models", timeout=5)
         data = resp.json()
-        data["default_model"] = CONFIG.get("lm_studio_model", "")
+        data["default_model"] = CONFIG.get("llm_model", "")
         return jsonify(data)
     except Exception as e:
         logger.error("Failed to list models", extra={'error': str(e)})
         return jsonify({
             "data": [],
-            "default_model": CONFIG.get("lm_studio_model", ""),
+            "default_model": CONFIG.get("llm_model", ""),
             "error": str(e)
         })
 

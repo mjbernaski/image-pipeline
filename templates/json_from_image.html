@@ -261,7 +261,7 @@ fetch('/api/models')
     }
   })
   .catch(() => {
-    document.getElementById('model-select').innerHTML = '<option value="">Could not connect to LM Studio</option>';
+    document.getElementById('model-select').innerHTML = '<option value="">Could not connect to Ollama</option>';
   });
 
 dropZone.addEventListener('click', () => fileInput.click());
@@ -306,7 +306,7 @@ async function analyze() {
   btnAnalyze.disabled = true;
   btnAnalyze.textContent = 'Analyzing...';
   statusEl.className = 'status';
-  statusEl.innerHTML = '<span class="spinner"></span>Sending to LM Studio...';
+  statusEl.innerHTML = '<span class="spinner"></span>Sending to Ollama...';
   statusEl.style.display = 'block';
   resultEl.style.display = 'none';
   currentResult = null;

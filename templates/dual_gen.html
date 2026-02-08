@@ -986,7 +986,7 @@
                 let dotClass = llmStatus.state || 'idle';
                 let statusText = llmStatus.state || 'idle';
                 let timeText = '';
-                let detailText = llmStatus.model || 'LM Studio';
+                let detailText = llmStatus.model || 'Ollama';
 
                 if (llmStatus.state === 'generating' && llmStatus.start_time) {
                     const elapsed = now - llmStatus.start_time;

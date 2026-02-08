@@ -26,7 +26,7 @@ ERROR_CODES = {
     'JOB_NOT_FOUND': 'Requested job does not exist',
     'SERVICE_UNAVAILABLE': 'Upstream service is unavailable',
     'INTERNAL_ERROR': 'An internal error occurred',
-    'LM_STUDIO_ERROR': 'LM Studio request failed',
+    'LLM_ERROR': 'LLM request failed',
     'TIMEOUT': 'Request timed out',
 }
 
@@ -108,12 +108,12 @@ def detect_image_type_from_base64(base64_data: str) -> Optional[str]:
         return None
 
 
-def normalize_lm_studio_url(url: str) -> str:
+def normalize_llm_url(url: str) -> str:
     """
-    Normalize LM Studio URL to ensure it ends with /v1.
+    Normalize LLM URL to ensure it ends with /v1.
 
     Args:
-        url: The base URL for LM Studio
+        url: The base URL for the LLM service
 
     Returns:
         URL with /v1 suffix
